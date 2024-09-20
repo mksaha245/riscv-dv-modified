@@ -99,42 +99,8 @@ class riscv_csr_instr extends riscv_instr;
       create_include_write_reg(cfg.add_csr_write, cfg.remove_csr_write, default_include_csr_write);
     end else begin
       // Use scratch register to avoid the side effect of modifying other privileged mode CSR.
-      if ((cfg.init_privileged_mode == MACHINE_MODE) && (cfg.cuzco_csr_list)) begin
-        include_reg = {MSCRATCH, FCSR,
-MSTATUS ,
-MISA,
-MEDELEG,
-MIDELEG,
-MIE,
-MTVEC   ,
-MCOUNTEREN,
-MSCRATCH,
-MEPC,
-MCAUSE,
-MTVAL,
-MIP,
-MHARTID,
-SIE,
-STVEC,
-SSCRATCH,
-SATP,
-PMPCFG0,
-PMPADDR0,
-PMPADDR1,
-PMPADDR2,
-PMPADDR3,
-PMPADDR4,
-PMPADDR5,
-PMPADDR6,
-PMPADDR7,
-PMPADDR8,
-PMPADDR9,
-PMPADDR10,
-PMPADDR11,
-PMPADDR12,
-PMPADDR13,
-PMPADDR14,
-PMPADDR15     };
+      if (cfg.init_privileged_mode == MACHINE_MODE) begin
+        include_reg = {MSCRATCH};
       end else if (cfg.init_privileged_mode == SUPERVISOR_MODE) begin
         include_reg = {SSCRATCH};
       end else begin

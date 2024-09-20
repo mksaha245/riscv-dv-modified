@@ -51,7 +51,7 @@ class riscv_instr_gen_config extends uvm_object;
   rand bit               s_mode_exception_delegation[exception_cause_t];
   rand bit               m_mode_interrupt_delegation[interrupt_cause_t];
   rand bit               s_mode_interrupt_delegation[interrupt_cause_t];
-  rand bit               cuzco_csr_list; 
+  rand bit               custom_csr_list; 
 
   // Priviledged mode after boot
   rand privileged_mode_t init_privileged_mode;
@@ -476,7 +476,7 @@ class riscv_instr_gen_config extends uvm_object;
   }
 
   `uvm_object_utils_begin(riscv_instr_gen_config)
-    `uvm_field_int(cuzco_csr_list, UVM_DEFAULT)
+    `uvm_field_int(custom_csr_list, UVM_DEFAULT)
     `uvm_field_int(main_program_instr_cnt, UVM_DEFAULT)
     `uvm_field_sarray_int(sub_program_instr_cnt, UVM_DEFAULT)
     `uvm_field_int(debug_program_instr_cnt, UVM_DEFAULT)
@@ -552,7 +552,7 @@ class riscv_instr_gen_config extends uvm_object;
     super.new(name);
     init_delegation();
     inst = uvm_cmdline_processor::get_inst();
-    get_bool_arg_value("+cuzco_csr_list=", cuzco_csr_list);
+    get_bool_arg_value("+custom_csr_list=", custom_csr_list);
     get_int_arg_value("+num_of_tests=", num_of_tests);
     get_int_arg_value("+enable_page_table_exception=", enable_page_table_exception);
     get_bool_arg_value("+enable_interrupt=", enable_interrupt);

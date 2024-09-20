@@ -232,7 +232,6 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
                                 input  bit is_in_debug = 1'b0,
                                 input  bit disable_dist = 1'b0,
                                 input  riscv_instr_group_t include_group[$] = {});
-    riscv_instr_category_t exclude_category[];
     riscv_instr_name_t exclude_instr[];
     if ((SP inside {reserved_rd, cfg.reserved_regs}) ||
         ((avail_regs.size() > 0) && !(SP inside {avail_regs}))) begin
@@ -247,12 +246,9 @@ class riscv_rand_instr_stream extends riscv_instr_stream;
         exclude_instr = {exclude_instr, EBREAK, C_EBREAK};
       end
     end
-    exclude_instr = {exclude_instr};
-    exclude_category = {exclude_category, LOAD, STORE, ARITHMETIC, LOGICAL, COMPARE, BRANCH, SHIFT };
     instr = riscv_instr::get_rand_instr(.include_instr(allowed_instr),
                                         .exclude_instr(exclude_instr),
-                                        .include_group(include_group),
-					.exclude_category(exclude_category));
+                                        .include_group(include_group));
     instr.m_cfg = cfg;
     randomize_gpr(instr);
   endfunction

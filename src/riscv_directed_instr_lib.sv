@@ -185,7 +185,7 @@ class riscv_jump_instr extends riscv_directed_instr_stream;
     end else begin
       instr = {la, addi, instr};
     end
-    //mix_instr_stream(instr);
+    mix_instr_stream(instr);
     instr_list = {instr_list, jump};
     foreach(instr_list[i]) begin
       instr_list[i].has_label = 1'b0;
@@ -436,7 +436,7 @@ class riscv_int_numeric_corner_stream extends riscv_directed_instr_stream;
     solve init_val_type before init_val;
     init_val_type.size() == num_of_avail_regs;
     init_val.size() == num_of_avail_regs;
-    num_of_instr inside {[100:150]};
+    num_of_instr inside {[15:30]};
   }
 
   constraint avail_regs_c {
@@ -469,7 +469,7 @@ class riscv_int_numeric_corner_stream extends riscv_directed_instr_stream;
       init_instr[i].rd = avail_regs[i];
       init_instr[i].pseudo_instr_name = LI;
       init_instr[i].imm_str = $sformatf("0x%0x", init_val[i]);
-      //instr_list.push_back(init_instr[i]);
+      instr_list.push_back(init_instr[i]);
     end
     for (int i = 0; i < num_of_instr; i++) begin
       riscv_instr instr = riscv_instr::get_rand_instr(
@@ -482,69 +482,3 @@ class riscv_int_numeric_corner_stream extends riscv_directed_instr_stream;
   endfunction
 
 endclass : riscv_int_numeric_corner_stream
-
-class riscv_cuzco_corner_stream extends riscv_directed_instr_stream;
-
-  typedef enum {
-    NormalValue,
-    Zero,
-    AllOne,
-    NegativeMax
-  } int_numeric_e;
-
-  int unsigned num_of_avail_regs = 10;
-  rand int unsigned   num_of_instr;
-  rand bit [XLEN-1:0] init_val[];
-  rand int_numeric_e  init_val_type[];
-  riscv_pseudo_instr  init_instr[];
-
-  constraint init_val_c {
-    solve init_val_type before init_val;
-    init_val_type.size() == num_of_avail_regs;
-    init_val.size() == num_of_avail_regs;
-    num_of_instr inside {[100:150]};
-  }
-
-  constraint avail_regs_c {
-    unique {avail_regs};
-    foreach(avail_regs[i]) {
-      !(avail_regs[i] inside {cfg.reserved_regs});
-      avail_regs[i] != ZERO;
-    }
-  }
-
-  `uvm_object_utils(riscv_cuzco_corner_stream)
-  `uvm_object_new
-
-  function void pre_randomize();
-    avail_regs = new[num_of_avail_regs];
-    super.pre_randomize();
-  endfunction : pre_randomize
-
-  function void post_randomize();
-    init_instr = new[num_of_avail_regs];
-    foreach (init_val_type[i]) begin
-      if (init_val_type[i] == Zero) begin
-        init_val[i] = 0;
-      end else if (init_val_type[i] == AllOne) begin
-        init_val[i] = '1;
-      end else if (init_val_type[i] == NegativeMax) begin
-        init_val[i] = 1 << (XLEN-1);
-      end
-      init_instr[i] = new();
-      init_instr[i].rd = avail_regs[i];
-      init_instr[i].pseudo_instr_name = LI;
-      init_instr[i].imm_str = $sformatf("0x%0x", init_val[i]);
-      //instr_list.push_back(init_instr[i]);
-    end
-    for (int i = 0; i < num_of_instr; i++) begin
-      riscv_instr instr = riscv_instr::get_rand_instr(
-        .include_category({CSR}),
-        .exclude_group({RV64I,RV32M,RV64M,RV32C, RV64C}));
-      randomize_gpr(instr);
-      instr_list.push_back(instr);
-    end
-    super.post_randomize();
-  endfunction
-
-endclass : riscv_cuzco_corner_stream

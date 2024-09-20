@@ -311,6 +311,7 @@
         end else begin
           `DV_CHECK_FATAL(operands.size() == 2)
         end
+
         if(category == CSR) begin
           // csrrw rd, csr, rs1
           if (preg_enum::from_name(operands[1].toupper(), preg)) begin
@@ -321,7 +322,27 @@
           rs1 = get_gpr(operands[2]);
           rs1_value = get_gpr_state(operands[2]);
         end
-        else begin
+	else if(category == LOAD )begin//&& format == RV32A) begin
+          // load rd, imm(rs1) -> rd,rs1,imm
+          rs1 = get_gpr(operands[0]);
+          rs1_value = get_gpr_state(operands[0]);
+          get_val(operands[1], imm);
+        end
+	else if(category == STORE )begin//&& format == RV32A) begin
+          // store rs2, imm(rs1) -> rs1,rs2,imm
+          rs2 = get_gpr(operands[1]);
+          rs2_value = get_gpr_state(operands[1]);
+          rs1 = get_gpr(operands[0]);
+          rs1_value = get_gpr_state(operands[0]);
+          get_val(operands[2], imm);
+        end
+        else if(category == AMO) begin
+          rs1 = get_gpr(operands[0]);
+          rs1_value = get_gpr_state(operands[0]);
+          rs2 = get_gpr(operands[1]);
+          rs2_value = get_gpr_state(operands[1]);
+          end
+	  else begin
           // add rd, rs1, rs2
           rs1 = get_gpr(operands[1]);
           rs1_value = get_gpr_state(operands[1]);

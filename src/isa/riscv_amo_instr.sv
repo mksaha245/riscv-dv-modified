@@ -73,4 +73,87 @@ class riscv_amo_instr extends riscv_instr;
     this.rl = rhs_.rl;
   endfunction : do_copy
 
+   virtual function bit [6:0] get_opcode();
+    case (instr_name) inside
+      ///////////// RV32A instruction added //////////////
+  //amo_cov_change      
+      LR_W,     		
+      SC_W    		, 
+      AMOSWAP_W		, 
+      AMOADD_W		, 
+      AMOAND_W		, 
+      AMOOR_W 		, 
+      AMOXOR_W		, 
+      AMOMIN_W		, 
+      AMOMAX_W		, 
+      AMOMINU_W		, 
+  ///////////// RV64A instruction added //////////////
+	LR_D			,     		
+	SC_D    		, 
+	AMOSWAP_D		, 
+	AMOADD_D		, 
+	AMOAND_D		, 
+	AMOOR_D 		, 
+	AMOXOR_D		, 
+	AMOMIN_D		, 
+	AMOMAX_D		, 
+	AMOMINU_D		, 
+	AMOMAXU_D		: get_opcode = 7'b0101111; 
+
+      default : `uvm_fatal(`gfn, $sformatf("Unsupported instruction %0s", instr_name.name()))
+    endcase
+  endfunction
+
+virtual function bit [2:0] get_func3();
+    case (instr_name) inside
+    ///////////// RV32A instruction added //////////////
+      LR_W     , 
+      SC_W    ,
+      AMOSWAP_W,
+      AMOADD_W,
+      AMOAND_W,
+      AMOOR_W ,
+      AMOXOR_W,
+      AMOMIN_W,
+      AMOMAX_W,
+      AMOMINU_W,
+      AMOMAXU_W: get_func3 = 3'b010;
+  ///////////// RV64A instruction added //////////////
+	LR_D			,     		
+	SC_D    		,                           	
+	AMOSWAP_D		, 
+	AMOADD_D		, 
+	AMOAND_D		, 
+	AMOOR_D 		, 
+	AMOXOR_D		, 
+	AMOMIN_D		, 
+	AMOMAX_D		, 
+	AMOMINU_D		, 
+	AMOMAXU_D		: get_func3 = 3'b011; 
+      
+      ECALL, EBREAK, URET, SRET, MRET, DRET, WFI, SFENCE_VMA : get_func3 = 3'b000;
+      default : `uvm_fatal(`gfn, $sformatf("Unsupported instruction %0s", instr_name.name()))
+    endcase
+  endfunction
+function bit [6:0] get_func7();
+    case (instr_name)
+  ///////////// RV32A & RV64A instruction added //////////////
+	    LR_W     ,LR_D					:get_func7 = {5'b00010,aq,rl};
+            SC_W     ,SC_D    					:get_func7 = {5'b00011,aq,rl};      
+            AMOSWAP_W,AMOSWAP_D					:get_func7 = {5'b00001,aq,rl};
+            AMOADD_W ,AMOADD_D					:get_func7 = {5'b00000,aq,rl};
+            AMOAND_W ,AMOAND_D					:get_func7 = {5'b01100,aq,rl};
+            AMOOR_W  ,AMOOR_D 					:get_func7 = {5'b01000,aq,rl};
+            AMOXOR_W ,AMOXOR_D					:get_func7 = {5'b00100,aq,rl};
+            AMOMIN_W ,AMOMIN_D					:get_func7 = {5'b10000,aq,rl};
+            AMOMAX_W ,AMOMAX_D					:get_func7 = {5'b10100,aq,rl};
+            AMOMINU_W,AMOMINU_D					:get_func7 = {5'b11000,aq,rl};
+            AMOMAXU_W,AMOMAXU_D					:get_func7 = {5'b11100,aq,rl};
+
+      default : `uvm_fatal(`gfn, $sformatf("Unsupported instruction %0s", instr_name.name()))
+    endcase
+  endfunction
+
+
+
 endclass
