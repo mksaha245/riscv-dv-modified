@@ -115,7 +115,9 @@ class riscv_asm_program_gen extends uvm_object;
                                      .instr_stream(main_program[hart].directed_instr));
       main_program[hart].cfg = cfg;
       `DV_CHECK_RANDOMIZE_FATAL(main_program[hart])
-      main_program[hart].gen_instr(.is_main_program(1), .no_branch(cfg.no_branch_jump));
+      if(cfg.enable_mixed_instr_stream) begin
+        main_program[hart].gen_instr(.is_main_program(1), .no_branch(cfg.no_branch_jump));
+      end
       // Setup jump instruction among main program and sub programs
       gen_callstack(main_program[hart], sub_program[hart], sub_program_name,
                     cfg.num_of_sub_program);

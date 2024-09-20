@@ -196,8 +196,9 @@ def collect_cov(out, cfg, cwd):
         opts_cov = ""
         if argv.vector_options:
             opts_vec = ("{}".format(argv.vector_options))
-        if argv.coverage_options:
-            opts_cov = ("{}".format(argv.coverage_options))
+        #amo_cov_change
+        #if argv.coverage_options:
+         #   opts_cov = ("{}".format(argv.coverage_options))
         if argv.compliance_mode:
             opts_cov += " +define+COMPLIANCE_MODE"
         # Building the coverage collection framework
@@ -270,8 +271,9 @@ def setup_parser():
                         help="Do not clean the output of the previous runs")
     parser.add_argument("--vector_options", type=str, default="",
                         help="Enable Vectors and set options")
-    parser.add_argument("--coverage_options", type=str, default="",
-                        help="Controlling coverage coverpoints")
+    #amo_cov_change
+    #parser.add_argument("--coverage_options", type=str, default="",
+     #                   help="Controlling coverage coverpoints")
     parser.add_argument("--exp", action="store_true", default=False,
                         help="Run generator with experimental features")
     parser.add_argument("-d", "--debug", type=str, default="",
