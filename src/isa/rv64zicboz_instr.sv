@@ -1,0 +1,4 @@
+// ZICBOZ Cache-Block Zero Instructions
+//CBO_ZERO,
+`DEFINE_INSTR(CBO_ZERO ,   I_FORMAT, SYSTEM, RV64ZICBOZ)
+

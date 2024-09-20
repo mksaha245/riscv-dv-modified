@@ -100,7 +100,13 @@ class riscv_csr_instr extends riscv_instr;
     end else begin
       // Use scratch register to avoid the side effect of modifying other privileged mode CSR.
       if (cfg.init_privileged_mode == MACHINE_MODE) begin
-        include_reg = {MSCRATCH};
+        include_reg = {cfg.custom_csr_include};
+        
+        if( !cfg.enable_floating_point )
+		    exclude_reg = {FCSR};
+	    else
+        	include_reg = {include_reg}; // FCSR
+
       end else if (cfg.init_privileged_mode == SUPERVISOR_MODE) begin
         include_reg = {SSCRATCH};
       end else begin

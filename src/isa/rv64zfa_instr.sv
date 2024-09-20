@@ -1,0 +1,70 @@
+/*// ZFA Additional floating-Point instructions
+    FLI_S     ,
+    FLI_D     ,
+    FLI_H     ,
+    // Minimum and Maximum Instructions
+    FMINM_S   , 
+    FMAXM_S   ,
+    FMINM_D   ,
+    FMAXM_D   ,
+    FMINM_H   ,
+    FMAXM_H   ,
+    // Round-to-Integer Instructions
+    FROUND_S  , 
+    FROUNDNX_S,  
+    FROUND_D  ,
+    FROUNDNX_D,  
+    FROUND_H  ,
+    FROUNDNX_H,  
+    // Modular Convert-to-Integer Instruction
+    FCVTMOD_W_D,
+    // Move Instruction
+    FMVH_X_D   ,
+    FMVP_D_X   ,
+    // Comparison Instruction
+    FLEQ_S     ,
+    FLTQ_S     ,
+    FLEQ_D     ,
+    FLTQ_D     ,
+    FLEQ_H     ,
+    FLTQ_H     ,
+
+///////////// Not supported /////////////
+    FLI_Q     ,
+    FMINM_Q   ,
+    FMAXM_Q   ,
+    FROUND_Q  ,
+    FMVH_X_Q   ,
+    FMVP_Q_X   ,
+    FROUNDNX_Q,  
+    FLEQ_Q     ,
+    FLTQ_Q     ,
+*/
+`DEFINE_INSTR(FLI_S        ,   I_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FLI_D        ,   I_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FLI_H        ,   I_FORMAT, ARITHMETIC, RV64ZFA)
+
+`DEFINE_INSTR(FMINM_S      ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FMAXM_S      ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FMINM_D      ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FMAXM_D      ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FMINM_H      ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FMAXM_H      ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FROUND_S     ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FROUNDNX_S   ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FROUND_D     ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FROUNDNX_D   ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FROUND_H     ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FROUNDNX_H   ,   R_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FCVTMOD_W_D  ,   I_FORMAT, ARITHMETIC, RV64ZFA)
+
+`DEFINE_INSTR(FMVH_X_D      ,   I_FORMAT, ARITHMETIC, RV64ZFA)
+`DEFINE_INSTR(FMVP_D_X      ,   I_FORMAT, ARITHMETIC, RV64ZFA)
+
+`DEFINE_INSTR(FLEQ_S        ,   R_FORMAT, COMPARE, RV64ZFA)
+`DEFINE_INSTR(FLTQ_S        ,   R_FORMAT, COMPARE, RV64ZFA)
+`DEFINE_INSTR(FLEQ_D        ,   R_FORMAT, COMPARE, RV64ZFA)
+`DEFINE_INSTR(FLTQ_D        ,   R_FORMAT, COMPARE, RV64ZFA)
+`DEFINE_INSTR(FLEQ_H        ,   R_FORMAT, COMPARE, RV64ZFA)
+`DEFINE_INSTR(FLTQ_H        ,   R_FORMAT, COMPARE, RV64ZFA)
+
