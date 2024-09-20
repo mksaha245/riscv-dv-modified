@@ -53,9 +53,9 @@ class riscv_instr_gen_config extends uvm_object;
   rand bit               s_mode_interrupt_delegation[interrupt_cause_t];
 
   // changes: Extra arguments
-  privileged_reg_t  cuzco_csr_include[]={};  
+  privileged_reg_t  custom_csr_include[]={};  
   bit                    custom_pmp_enable; 
-  bit                    custm_pmp_write_cfgaddr=0;
+  bit                    custom_pmp_write_cfgaddr=0;
   bit                    enable_mixed_instr_stream=1; 
   
 
@@ -482,9 +482,9 @@ class riscv_instr_gen_config extends uvm_object;
   }
 
   `uvm_object_utils_begin(riscv_instr_gen_config)
-    `uvm_field_array_enum(privileged_reg_t, cuzco_csr_include, UVM_DEFAULT)    
-    `uvm_field_int(cuzco_pmp_enable, UVM_DEFAULT)    
-    `uvm_field_int(cuzco_pmp_write_cfgaddr, UVM_DEFAULT)
+    `uvm_field_array_enum(privileged_reg_t, custom_csr_include, UVM_DEFAULT)    
+    `uvm_field_int(custom_pmp_enable, UVM_DEFAULT)    
+    `uvm_field_int(custom_pmp_write_cfgaddr, UVM_DEFAULT)
     `uvm_field_int(enable_mixed_instr_stream, UVM_DEFAULT)
     
     `uvm_field_int(main_program_instr_cnt, UVM_DEFAULT)
@@ -562,8 +562,8 @@ class riscv_instr_gen_config extends uvm_object;
     super.new(name);
     init_delegation();
     inst = uvm_cmdline_processor::get_inst();
-    get_bool_arg_value("+cuzco_pmp_enable=", cuzco_pmp_enable);
-    get_bool_arg_value("+cuzco_pmp_write_cfgaddr=", cuzco_pmp_write_cfgaddr);
+    get_bool_arg_value("+custom_pmp_enable=", custom_pmp_enable);
+    get_bool_arg_value("+custom_pmp_write_cfgaddr=", custom_pmp_write_cfgaddr);
     get_bool_arg_value("+enable_mixed_instr_stream=", enable_mixed_instr_stream);
     
     get_int_arg_value("+num_of_tests=", num_of_tests);
@@ -629,8 +629,8 @@ class riscv_instr_gen_config extends uvm_object;
     get_bool_arg_value("+enable_zbs_extension=", enable_zbs_extension);
     cmdline_enum_processor #(b_ext_group_t)::get_array_values("+enable_bitmanip_groups=",
                                                               1'b0, enable_bitmanip_groups);
-    cmdline_enum_processor #(privileged_reg_t)::get_array_values("+cuzco_csr_include=",
-                                                              1'b0, cuzco_csr_include);
+    cmdline_enum_processor #(privileged_reg_t)::get_array_values("+custom_csr_include=",
+                                                              1'b0, custom_csr_include);
     if(inst.get_arg_value("+boot_mode=", boot_mode_opts)) begin
       `uvm_info(get_full_name(), $sformatf(
                 "Got boot mode option - %0s", boot_mode_opts), UVM_LOW)

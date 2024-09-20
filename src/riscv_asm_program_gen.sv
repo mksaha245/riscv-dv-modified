@@ -72,8 +72,6 @@ class riscv_asm_program_gen extends uvm_object;
     gen_program_header();
     for (int hart = 0; hart < cfg.num_of_harts; hart++) begin
       string sub_program_name[$];
-      // CUZCO : CHANGES
-      /*
       instr_stream.push_back($sformatf("h%0d_start:", hart));
       if (!cfg.bare_program_mode) begin
         setup_misa();
@@ -82,7 +80,6 @@ class riscv_asm_program_gen extends uvm_object;
         // Setup privileged mode registers and enter target privileged mode
         pre_enter_privileged_mode(hart);
       end
-      */
       // Init section
       gen_init_section(hart);
       // If PMP is supported, we want to generate the associated trap handlers and the test_done
@@ -142,26 +139,17 @@ class riscv_asm_program_gen extends uvm_object;
       insert_sub_program(sub_program[hart], instr_stream);
       `uvm_info(`gfn, "Inserting sub-programs...done", UVM_LOW)
       `uvm_info(`gfn, "Main/sub program generation...done", UVM_LOW)
-
-      /* CUZCO : program end edited and enabled */    
       // Program end
       gen_program_end(hart);
-
-      /* CUZCO : gen_debug_rom disabled, keeping for future use 
       if (!cfg.bare_program_mode) begin
         // Generate debug rom section
         if (riscv_instr_pkg::support_debug_mode) begin
           gen_debug_rom(hart);
         end
       end
-      */
-     /* CUZCO : end progrem boot code */
-      //gen_section({hart_prefix(hart), "instr_end"}, {"nop"});
-      instr_stream.push_back("CZ_TEST_PASS");
-      instr_stream.push_back("CZ_TEST_CODE_END\n");
+      gen_section({hart_prefix(hart), "instr_end"}, {"nop"});
     end
     for (int hart = 0; hart < cfg.num_of_harts; hart++) begin
-      /* CUZCO : Data page gen needed  */    
       // Starting point of data section
       gen_data_page_begin(hart);
       if(!cfg.no_data_page) begin
@@ -172,13 +160,8 @@ class riscv_asm_program_gen extends uvm_object;
           gen_data_page(hart, .amo(1));
         end
       end
-
-      /* CUZCO : gen_stack disabled */    
       // Stack section
-      //gen_stack_section(hart);
-
-      /* CUZCO : bare_program mode and page table disabled, enable if needed in future */    
-      /*
+      gen_stack_section(hart);
       if (!cfg.bare_program_mode) begin
         // Generate kernel program/data/stack section
         gen_kernel_sections(hart);
@@ -187,7 +170,6 @@ class riscv_asm_program_gen extends uvm_object;
       if (!cfg.bare_program_mode) begin
         gen_page_table_section(hart);
       end
-      */
     end
   endfunction
 
@@ -341,22 +323,9 @@ class riscv_asm_program_gen extends uvm_object;
 
   virtual function void gen_program_header();
     string str[$];
-    // Added by mukesh
-    // CUZCO : Adding cuzco header and file
-    instr_stream.push_back("//**********************************************************************\n//    Copyright 2023 Condor Computing - All Rights Reserved.\n//    Originator: \n//    This thing: \n//    Born-on Date: \n//**********************************************************************\n//    Description: \n//********************************************************************** ");
-
-    instr_stream.push_back("#include \"cz_asm_test.h\"");
-    instr_stream.push_back("CZ_TEST_CODE_BEGIN\n");
-    
-    // CUZCO : Enabling C extension
-    if (cfg.disable_compressed_instr) begin
-      instr_stream.push_back("CZ_NO_COMPRESS");
-    end
-    /* Edit by mukesh
     instr_stream.push_back(".include \"user_define.h\"");
     instr_stream.push_back(".globl _start");
     instr_stream.push_back(".section .text");
-    
     if (cfg.disable_compressed_instr) begin
       instr_stream.push_back(".option norvc;");
     end
@@ -366,24 +335,18 @@ class riscv_asm_program_gen extends uvm_object;
       str = {str, $sformatf("li x6, %0d", hart),
                   $sformatf("beq x5, x6, %0df", hart)};
     end
-    //gen_section("_start", str);
-    //
+    gen_section("_start", str);
     for (int hart = 0; hart < cfg.num_of_harts; hart++) begin
       instr_stream.push_back($sformatf("%0d: la x%0d, h%0d_start", hart, cfg.scratch_reg, hart));
       instr_stream.push_back($sformatf("jalr x0, x%0d, 0", cfg.scratch_reg));
     end
-    */
   endfunction
 
   virtual function void gen_program_end(int hart);
     if (hart == 0) begin
-	gen_section({hart_prefix(hart), "instr_end"}, {"nop"});
-	
-    /* Edit by mukesh
       // Use write_tohost to terminate spike simulation
       gen_section("write_tohost", {"sw gp, tohost, t5"});
       gen_section("_exit", {"j write_tohost"});
-    */
     end
   endfunction
 
@@ -463,10 +426,9 @@ class riscv_asm_program_gen extends uvm_object;
       init_floating_point_gpr();
     end
     init_gpr();
-    // CUZCO : CHANGES
     // Init stack pointer to point to the end of the user stack
-    //str = {indent, $sformatf("la x%0d, %0suser_stack_end", cfg.sp, hart_prefix(hart))};
-    //instr_stream.push_back(str);
+    str = {indent, $sformatf("la x%0d, %0suser_stack_end", cfg.sp, hart_prefix(hart))};
+    instr_stream.push_back(str);
     if (cfg.enable_vector_extension) begin
       randomize_vec_gpr_and_csr();
     end
@@ -747,9 +709,7 @@ class riscv_asm_program_gen extends uvm_object;
     if (cfg.bare_program_mode) begin
       instr_stream.push_back({indent, "j write_tohost"});
     end else begin
-    /* Edit by mukesh
-      //instr_stream.push_back({indent, "ecall"});
-      */
+      instr_stream.push_back({indent, "ecall"});
     end
   endfunction
 
@@ -781,18 +741,14 @@ class riscv_asm_program_gen extends uvm_object;
     string instr[];
     string str[$];
     // Setup kerenal stack pointer
-      /* CUZCO : program end edited and enabled */    
-    	//str = {$sformatf("la x%0d, %0skernel_stack_end", cfg.tp, hart_prefix(hart))};
-    	//gen_section(get_label("kernel_sp", hart), str);
-	
+    str = {$sformatf("la x%0d, %0skernel_stack_end", cfg.tp, hart_prefix(hart))};
+    gen_section(get_label("kernel_sp", hart), str);
     // Setup interrupt and exception delegation
     if(!cfg.no_delegation && (cfg.init_privileged_mode != MACHINE_MODE)) begin
       gen_delegation(hart);
     end
     // Setup trap vector register
-      /* CUZCO : program end edited and enabled */    
-    	//trap_vector_init(hart);
-	
+    trap_vector_init(hart);
     // Setup PMP CSRs
     setup_pmp(hart);
     // Generate PMPADDR write test sequence
@@ -802,18 +758,12 @@ class riscv_asm_program_gen extends uvm_object;
       page_table_list.process_page_table(instr);
       gen_section(get_label("process_pt", hart), instr);
     end
-    
-      /* CUZCO : disabling setup_epc  */    
-    	// Setup mepc register, jump to init entry
-    	//setup_epc(hart);
-	
-      /* CUZCO : disabling setup_custom_csrs  */    
-    	// Initialization of any implementation-specific custom CSRs
-    	//setup_custom_csrs(hart);
-
-      /* CUZCO : disabling gen_privileged_mode_switch_routine  */    
-    	// Setup initial privilege mode
-    	//gen_privileged_mode_switch_routine(hart);
+    // Setup mepc register, jump to init entry
+    setup_epc(hart);
+    // Initialization of any implementation-specific custom CSRs
+    setup_custom_csrs(hart);
+    // Setup initial privilege mode
+    gen_privileged_mode_switch_routine(hart);
   endfunction
 
   virtual function void gen_privileged_mode_switch_routine(int hart);
@@ -1695,7 +1645,3 @@ class riscv_asm_program_gen extends uvm_object;
   endfunction
 
 endclass
-
-
-
-

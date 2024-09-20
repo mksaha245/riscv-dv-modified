@@ -17,11 +17,13 @@
 
 
 package riscv_instr_pkg;
+ 
+  static string pmp_reg_str[$];
 
   `include "dv_defines.svh"
   `include "riscv_defines.svh"
   `include "uvm_macros.svh"
-
+  
   import uvm_pkg::*;
   import riscv_signature_pkg::*;
 
@@ -80,7 +82,10 @@ package riscv_instr_pkg;
     MACHINE_MODE    = 2'b11
   } privileged_mode_t;
 
-  typedef enum bit [4:0] {
+  typedef enum bit [5:0] {
+    RV16FH,
+    RV32FH,
+    RV64FH,
     RV32I,
     RV64I,
     RV32M,
@@ -108,6 +113,30 @@ package riscv_instr_pkg;
     RV64ZBB,
     RV64ZBC,
     RV64ZBS,
+    RV64ZBK,
+    RV64ZBKX,
+    RV64ZBKB,
+    RV64ZBKC,
+    RV64ZKND,
+    RV64ZKNE,
+    RV64ZKNH,
+    RV64ZKSED,
+    RV64ZKSH,
+    RV64ZIHINTPAUSE,
+    RV64ZIBOP,
+    RV64ZICBOP,
+    RV64XZICBOZ,
+    RV64ZVFHMIN,
+    RV64ZVBB,
+    RV64ZVKT,
+    RV64ZIHINTNTL,
+    RV64ZICOND,
+    RV64ZIMOP,
+    RV64ZCMOP,
+    RV64ZCB,
+    RV64ZFA,
+    RV64ZAWRS,
+
     RV32X,
     RV64X
   } riscv_instr_group_t;
@@ -185,10 +214,14 @@ package riscv_instr_pkg;
     SEXT_H,
     XNOR,
     ZEXT_H,
+    BREV8,
     // RV32ZBC instructions
     CLMUL,
     CLMULH,
     CLMULR,
+    CLMUL_W, 
+    CLMULH_W,
+    CLMULR_W,
     // RV32ZBS instructions
     BCLR,
     BCLRI,
@@ -271,6 +304,31 @@ package riscv_instr_pkg;
     PACKW,
     PACKUW,
     XPERM_W,
+    AES64DS,  
+    AES64DSM, 
+    AES64IM,  
+    AES64ES,  
+    AES64ESM, 
+    AES64KS1I,
+    AES64KS2, 
+    SHA256SIG0,
+    SHA256SIG1,
+    SHA256SUM0,
+    SHA256SUM1,
+    SHA512SIG0H,
+    SHA512SIG0L,
+    SHA512SIG1H,
+    SHA512SIG1L,
+    SHA512SUM0R,
+    SHA512SUM1R,
+    SHA512SIG0,
+    SHA512SIG1,
+    SHA512SUM0,
+    SHA512SUM1,
+    SM4ED,  
+    SM4KS,  
+    SM3P0,  
+    SM3P1,  
     // RV32M instructions
     MUL,
     MULH,
@@ -352,6 +410,43 @@ package riscv_instr_pkg;
     FCVT_D_L,
     FCVT_D_LU,
     FMV_D_X,
+    //RV64HF
+    FLH,
+    FSH,
+    FMADD_H,
+    FMSUB_H,
+    FNMSUB_H,
+    FNMADD_H,
+    FADD_H,
+    FSUB_H,
+    FMUL_H,
+    FDIV_H,
+    FSQRT_H,
+    FSGNJ_H,
+    FSGNJN_H,
+    FSGNJX_H,
+    FMIN_H,
+    FMAX_H,
+    FEQ_H,
+    FLT_H,
+    FLE_H,
+    FCLASS_H,
+    FMV_X_H,
+    FMV_H_X,
+        //RV32HF
+    FCVT_S_H,
+    FCVT_H_S,
+    FCVT_W_H,
+    FCVT_H_W,
+    FCVT_WU_H,
+    FCVT_H_WU,
+        //RV64HF
+    FCVT_D_H,
+    FCVT_H_D,
+    FCVT_L_H,
+    FCVT_LU_H,
+    FCVT_H_L,
+    FCVT_H_LU,
     // RV64I
     LWU,
     LD,
@@ -648,6 +743,149 @@ package riscv_instr_pkg;
     WFI,
     SFENCE_VMA,
     // Custom instructions
+    // ZIHINTPAUSE Pause hint
+    PAUSE,
+    // ZICBOM Cache-block management instructions.
+    CBO_CLEAN,
+    CBO_FLUSH,
+    CBO_INVAL,
+    // ZICBOP Cache-block prefetch instructions
+    PREFETCH_I,
+    PREFETCH_R,
+    PREFETCH_W,
+    // ZICBOZ Cache-Block Zero Instructions
+    CBO_ZERO,
+    // already support ZVFHMIN Vector Minimal Half-precision floating-point
+    //VFWCVT_F_F_V,
+    //VFWCVT_F_F_W,
+    
+    // ZVBB  Vector basic bit-manipulation instructionS
+    VANDN_VV , 
+    VANDN_VX , 
+    VBREV_V  ,
+    VBREV8_V ,
+    VREV8_V  ,
+    VCLZ_V   ,
+    VCTZ_V   ,
+    VCOPOP_V , 
+    VROL_VV  ,
+    VROL_VX  ,
+    VROR_VV  ,
+    VROR_VX  ,
+    VROR_VI  ,
+    VWSLL_VV , 
+    VWSLL_VX , 
+    VWSLL_VI , 
+
+    // ZVKT Zvkt Vector data-independent execution latency
+    //VANDN_VV  ,
+    //VANDN_VX  ,
+    //VBREV_V   ,
+    //VBREV8_V  ,
+    //VREV8_V   ,
+    //VCLZ_V    ,
+    //VCTZ_V    ,
+    //VCOPOP_V  ,
+    //VROL_VV   ,
+    //VROL_VX   ,
+    //VROR_VV   ,
+    //VROR_VX   ,
+    //VROR_VI   ,
+    //VWSLL_VV  ,
+    //VWSLL_VX  ,
+    //VWSLL_VI  ,
+    VCLMUL_VV ,
+    VCLMUL_VX ,
+    VCLMULH_VV,
+    VCLMULH_VX,
+
+    // ZIHINTNTL Non-temporal locality hints.
+    NTL_P1    , 
+    NTL_PALL  ,
+    NTL_S1    ,
+    NTL_ALL   ,
+    
+    // ZICOND Integer conditional operations
+    CZERO_EQZ,
+    CZERO_NEZ,
+ 
+    // ZIMOP may-be-operations
+    MOP_R_N   , 
+    MOP_RR_N  ,
+
+    // ZCMOP  Compressed may-be-operations
+    C_MOP_1   , 
+    C_MOP_3   ,
+    C_MOP_5   ,
+    C_MOP_7   ,
+    C_MOP_9   ,
+    C_MOP_11  ,
+    C_MOP_13  ,
+    C_MOP_15  ,
+
+    // ZCB Additional compressed instructions
+    C_LBU     ,  
+    C_LHU     ,
+    C_LH      ,
+    C_SB      ,
+    C_SH      ,
+    C_ZEXT_B  ,
+    C_SEXT_B  ,
+    C_ZEXT_H  ,
+    C_SEXT_H  ,
+    C_ZEXT_W  ,
+    C_NOT     ,
+    C_MUL     ,
+
+    // ZFA Additional floating-Point instructions
+    FLI_S     ,
+    FLI_D     ,
+    FLI_Q     ,
+    FLI_H     ,
+
+    // Minimum and Maximum Instructions
+    FMINM_S   , 
+    FMAXM_S   ,
+    FMINM_D   ,
+    FMAXM_D   ,
+    FMINM_Q   ,
+    FMAXM_Q   ,
+    FMINM_H   ,
+    FMAXM_H   ,
+    
+    // Round-to-Integer Instructions
+    FROUND_S  , 
+    FROUNDNX_S,  
+    FROUND_D  ,
+    FROUNDNX_D,  
+    FROUND_H  ,
+    FROUNDNX_H,  
+    FROUND_Q  ,
+    FROUNDNX_Q,  
+
+    // Modular Convert-to-Integer Instruction
+    FCVTMOD_W_D,
+
+    // Move Instruction
+    FMVH_X_D   ,
+    FMVP_D_X   ,
+    FMVH_X_Q   ,
+    FMVP_Q_X   ,
+
+    // Comparison Instruction
+    FLEQ_S     ,
+    FLTQ_S     ,
+    FLEQ_D     ,
+    FLTQ_D     ,
+    FLEQ_H     ,
+    FLTQ_H     ,
+    FLEQ_Q     ,
+    FLTQ_Q     ,
+    
+    // ZAWRS Wait-on-reservation-set instructions
+    WRS_NTO    ,
+    WRS_STO    ,
+
     `include "isa/custom/riscv_custom_instr_enum.sv"
     // You can add other instructions here
     INVALID_INSTR
@@ -1304,6 +1542,8 @@ package riscv_instr_pkg;
     ZBR,
     ZBM,
     ZBT,
+    ZBKX,
+    ZBK,
     ZB_TMP // for uncategorized instructions
   } b_ext_group_t;
 
@@ -1525,14 +1765,14 @@ package riscv_instr_pkg;
               UVM_FULL)
   endfunction : get_val
 
-  `include "riscv_vector_cfg.sv"
-  `include "riscv_pmp_cfg.sv"
   typedef class riscv_instr;
   typedef class riscv_zba_instr;
   typedef class riscv_zbb_instr;
   typedef class riscv_zbc_instr;
   typedef class riscv_zbs_instr;
   typedef class riscv_b_instr;
+  `include "riscv_vector_cfg.sv"
+  `include "riscv_pmp_cfg.sv"
   `include "riscv_instr_gen_config.sv"
   `include "isa/riscv_instr.sv"
   `include "isa/riscv_amo_instr.sv"
@@ -1554,17 +1794,28 @@ package riscv_instr_pkg;
   `include "isa/rv32i_instr.sv"
   `include "isa/rv32b_instr.sv"
   `include "isa/rv32zba_instr.sv"
-  `include "isa/rv32zbb_instr.sv"
-  `include "isa/rv32zbc_instr.sv"
+//  `include "isa/rv32zbb_instr.sv"
+//  `include "isa/rv32zbc_instr.sv"
   `include "isa/rv32zbs_instr.sv"
   `include "isa/rv32m_instr.sv"
   `include "isa/rv64a_instr.sv"
   `include "isa/rv64b_instr.sv"
+//  `include "isa/rv64zbk_instr.sv"
+  `include "isa/rv64zbkb_instr.sv"
+  `include "isa/rv64zbkc_instr.sv"
+  `include "isa/rv64zknd_instr.sv"
+  `include "isa/rv64zkne_instr.sv"
+  `include "isa/rv64zknh_instr.sv"
+  `include "isa/rv64zksed_instr.sv"
+  `include "isa/rv64zksh_instr.sv"
   `include "isa/rv64zba_instr.sv"
   `include "isa/rv64zbb_instr.sv"
   `include "isa/rv64c_instr.sv"
   `include "isa/rv64d_instr.sv"
   `include "isa/rv64f_instr.sv"
+  `include "isa/rv16fh_instr.sv"
+  `include "isa/rv32fh_instr.sv"
+  `include "isa/rv64fh_instr.sv"
   `include "isa/rv64i_instr.sv"
   `include "isa/rv64m_instr.sv"
   `include "isa/rv128c_instr.sv"
@@ -1572,6 +1823,21 @@ package riscv_instr_pkg;
   `include "isa/custom/riscv_custom_instr.sv"
   `include "isa/custom/rv32x_instr.sv"
   `include "isa/custom/rv64x_instr.sv"
+//  `include "isa/rv64zihintpause_instr.sv"
+//  `include "isa/rv64zicbom_instr.sv"
+//  `include "isa/rv64zicbop_instr.sv"
+//  `include "isa/rv64zicboz_instr.sv"
+	//  `include "isa/rv64zvfhmin_instr.sv"
+//`include "isa/rv64zvbb_instr.sv"
+//  `include "isa/rv64zvkt_instr.sv"
+//  `include "isa/rv64zihintntl_instr.sv"
+//  `include "isa/rv64zicond_instr.sv"
+//  `include "isa/rv64zimop_instr.sv"
+//  `include "isa/rv64cmop_instr.sv"
+//  `include "isa/rv64zcb_instr.sv"
+//  `include "isa/rv64zfa_instr.sv"
+//  `include "isa/rv64zawrs_instr.sv"
+//  `include "isa/riscv_z_instr.sv"
 
   `include "riscv_pseudo_instr.sv"
   `include "riscv_illegal_instr.sv"
@@ -1590,6 +1856,7 @@ package riscv_instr_pkg;
   `include "riscv_directed_instr_lib.sv"
   `include "riscv_load_store_instr_lib.sv"
   `include "riscv_amo_instr_lib.sv"
+  `include "riscv_custom_directed_instr_lib.sv"
 
   `include "riscv_instr_sequence.sv"
   `include "riscv_asm_program_gen.sv"
@@ -1598,3 +1865,4 @@ package riscv_instr_pkg;
   `include "user_extension.svh"
 
 endpackage
+
