@@ -24,7 +24,7 @@ parameter int XLEN = 64;
 parameter satp_mode_t SATP_MODE = SV39;
 
 // Supported Privileged mode
-privileged_mode_t supported_privileged_mode[] = {SUPERVISOR_MODE};
+privileged_mode_t supported_privileged_mode[] = {USER_MODE, SUPERVISOR_MODE, MACHINE_MODE};
 
 // Unsupported instructions
 riscv_instr_name_t unsupported_instr[];
@@ -40,7 +40,7 @@ mtvec_mode_t supported_interrupt_mode[$] = {DIRECT, VECTORED};
 int max_interrupt_vector_num = 16;
 
 // Physical memory protection support
-bit support_pmp = 1;
+bit support_pmp = 0;
 
 // Enhanced physical memory protection support
 bit support_epmp = 0;
@@ -186,4 +186,3 @@ const exception_cause_t implemented_exception[] = {
     LOAD_PAGE_FAULT,
     STORE_AMO_PAGE_FAULT
 };
-
