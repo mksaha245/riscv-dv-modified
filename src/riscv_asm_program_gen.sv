@@ -460,7 +460,15 @@ class riscv_asm_program_gen extends uvm_object;
         RVV                  : misa[MISA_EXT_V] = 1'b1;
         RV32X, RV64X         : misa[MISA_EXT_X] = 1'b1;
         RV32ZBA, RV32ZBB, RV32ZBC, RV32ZBS,
-        RV64ZBA, RV64ZBB, RV64ZBC, RV64ZBS : ; // No Misa bit for Zb* extensions
+        RV64ZBA, RV64ZBB, RV64ZBC, RV64ZBS,
+        RV64ZBK, RV64ZBKX, RV64ZBKB, RV64ZBKC,
+        RV64ZKND, RV64ZKNE, RV64ZKNH, RV64ZKSED,
+        RV64ZKSH, RV64ZIHINTPAUSE, RV64ZIBOP,
+        RV64ZICBOP, RV64ZICBOZ, RV64ZICBOM,
+        RV64ZVFHMIN, RV64ZVBB, RV64ZVKT, RV64ZIHINTNTL,
+        RV64ZICOND, RV64ZIMOP, RV64ZCMOP, RV64ZCB,
+        RV64ZFA, RV64ZAWRS
+        : ; // No Misa bit for Zb* extensions
         default : `uvm_fatal(`gfn, $sformatf("%0s is not yet supported",
                                    supported_isa[i].name()))
       endcase

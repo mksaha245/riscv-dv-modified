@@ -53,7 +53,7 @@ class riscv_instr_gen_config extends uvm_object;
   rand bit               s_mode_interrupt_delegation[interrupt_cause_t];
 
   // changes: Extra arguments
-  privileged_reg_t  custom_csr_include[]={};  
+  privileged_reg_t       custom_csr_include[]={};  
   bit                    custom_pmp_enable; 
   bit                    custom_pmp_write_cfgaddr=0;
   bit                    enable_mixed_instr_stream=1; 
@@ -749,10 +749,15 @@ class riscv_instr_gen_config extends uvm_object;
 
   virtual function void check_setting();
     bit support_64b;
+    bit support_16b;
     bit support_128b;
     foreach (riscv_instr_pkg::supported_isa[i]) begin
       if (riscv_instr_pkg::supported_isa[i] inside {RV64I, RV64M, RV64A, RV64F, RV64D, RV64C,
-                                                    RV64B}) begin
+                                                    RV64B,RV64ZBA,RV64ZBB,RV64ZBC,RV64ZBS,RV64ZBK,RV16FH,RV32FH,RV64FH,		    
+						    RV64ZIHINTPAUSE, RV64ZIBOP, RV64ZICBOP, RV64ZICBOM, RV64ZICBOZ, 
+						    RV64ZVFHMIN, RV64ZVBB, RV64ZVKT, RV64ZIHINTNTL, RV64ZICOND, 
+						    RV64ZIMOP, RV64ZCMOP, RV64ZCB, RV64ZFA, RV64ZAWRS
+						    }) begin
         support_64b = 1'b1;
       end else if (riscv_instr_pkg::supported_isa[i] inside {RV128I, RV128C}) begin
         support_128b = 1'b1;
@@ -771,6 +776,7 @@ class riscv_instr_gen_config extends uvm_object;
       `uvm_fatal(`gfn, $sformatf("SATP mode %0s is not supported for RV32G ISA", SATP_MODE.name()))
     end
   endfunction
+
 
   // Populate invalid_priv_mode_csrs with the main implemented CSRs for each supported privilege
   // mode

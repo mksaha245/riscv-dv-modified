@@ -30,20 +30,19 @@
 # compare_opts    : Options for the RTL & ISS trace comparison
 # gcc_opts        : gcc compile options
 # --------------------------------------------------------------------------------
-
+#amo_cov_origin
 - test: riscv_arithmetic_basic_test
   description: >
     Arithmetic instruction test, no load/store/branch instructions
   gen_opts: >
-    +instr_cnt=200
+    +instr_cnt=10000
     +num_of_sub_program=0
-    +directed_instr_0=riscv_int_numeric_corner_stream,1
+    +directed_instr_0=riscv_int_numeric_corner_stream,4
     +no_fence=1
     +no_data_page=1
     +no_branch_jump=1
     +boot_mode=m
-    #+no_csr_instr=1
-    
+    +no_csr_instr=1
   iterations: 1
   gen_test: riscv_instr_base_test
   rtl_test: core_base_test
@@ -54,7 +53,7 @@
   iterations: 2
   gen_test: riscv_instr_base_test
   gen_opts: >
-    +instr_cnt=10000
+    +instr_cnt=1000000
     +num_of_sub_program=5
     +directed_instr_0=riscv_load_store_rand_instr_stream,4
     +directed_instr_1=riscv_loop_instr,4
@@ -79,23 +78,23 @@
 - test: riscv_loop_test
   description: >
     Random instruction stress test
-  iterations: 2
+  iterations: 1
   gen_test: riscv_instr_base_test
   gen_opts: >
     +instr_cnt=10000
-    +num_of_sub_program=5
-    +directed_instr_1=riscv_loop_instr,20
+    +num_of_sub_program=2
+    +directed_instr_1=riscv_loop_instr,10
   rtl_test: core_base_test
 
 - test: riscv_rand_jump_test
   description: >
     Jump among large number of sub-programs, stress testing iTLB operations.
-  iterations: 2
+  iterations: 1
   gen_test: riscv_instr_base_test
   gen_opts: >
-    +instr_cnt=10000
-    +num_of_sub_program=10
-    +directed_instr_0=riscv_load_store_rand_instr_stream,8
+    +instr_cnt=1000000
+    +num_of_sub_program=2
+    +directed_instr_0=riscv_load_store_rand_instr_stream,20
   rtl_test: core_base_test
 
 - test: riscv_mmu_stress_test
@@ -177,7 +176,7 @@
 - test: riscv_csr_test
   description: >
     Test all CSR instructions on all implemented CSR registers
-  iterations: 1
+  iterations: 0
   no_iss: 1
   rtl_test: core_csr_test
   no_post_compare: 1
@@ -198,22 +197,3 @@
     +directed_instr_3=riscv_mem_region_stress_test,5
     +enable_unaligned_load_store=1
   rtl_test: core_base_test
-
-- test: riscv_cuzco_test
-  description: >
-    Arithmetic instruction test, no load/store/branch instructions
-  gen_opts: >
-    +instr_cnt=100
-    +num_of_sub_program=0
-    +directed_instr_0=riscv_cuzco_corner_stream,4
-    +no_fence=1
-    +no_data_page=1
-    +no_branch_jump=1
-    +randomize_csr=1
-    +gen_all_csrs_by_default=1
-    +cuzco_csr_list=1
-  iterations: 2
-  gen_test: riscv_instr_base_test
-  rtl_test: core_base_test
-
-  

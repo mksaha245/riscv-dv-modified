@@ -129,3 +129,8 @@
 `define DEFINE_ZBS_INSTR(instr_n, instr_format, instr_category, instr_group, imm_tp = IMM) \
   class riscv_``instr_n``_instr extends riscv_zbs_instr; \
     `INSTR_BODY(instr_n, instr_format, instr_category, instr_group, imm_tp)
+//Z extesnion include Zi* ISA's
+`define DEFINE_Z_INSTR(instr_n, instr_format, instr_category, instr_group, imm_tp = IMM)  \
+  class riscv_``instr_n``_instr extends riscv_z_instr;  \
+    `INSTR_BODY(instr_n, instr_format, instr_category, instr_group, imm_tp)
+

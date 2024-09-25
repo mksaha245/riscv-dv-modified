@@ -125,7 +125,8 @@ package riscv_instr_pkg;
     RV64ZIHINTPAUSE,
     RV64ZIBOP,
     RV64ZICBOP,
-    RV64XZICBOZ,
+    RV64ZICBOZ,
+    RV64ZICBOM,
     RV64ZVFHMIN,
     RV64ZVBB,
     RV64ZVKT,
@@ -1771,6 +1772,7 @@ package riscv_instr_pkg;
   typedef class riscv_zbc_instr;
   typedef class riscv_zbs_instr;
   typedef class riscv_b_instr;
+  typedef class riscv_z_instr;
   `include "riscv_vector_cfg.sv"
   `include "riscv_pmp_cfg.sv"
   `include "riscv_instr_gen_config.sv"
@@ -1823,21 +1825,21 @@ package riscv_instr_pkg;
   `include "isa/custom/riscv_custom_instr.sv"
   `include "isa/custom/rv32x_instr.sv"
   `include "isa/custom/rv64x_instr.sv"
-//  `include "isa/rv64zihintpause_instr.sv"
-//  `include "isa/rv64zicbom_instr.sv"
-//  `include "isa/rv64zicbop_instr.sv"
-//  `include "isa/rv64zicboz_instr.sv"
-	//  `include "isa/rv64zvfhmin_instr.sv"
-//`include "isa/rv64zvbb_instr.sv"
-//  `include "isa/rv64zvkt_instr.sv"
-//  `include "isa/rv64zihintntl_instr.sv"
-//  `include "isa/rv64zicond_instr.sv"
-//  `include "isa/rv64zimop_instr.sv"
-//  `include "isa/rv64cmop_instr.sv"
-//  `include "isa/rv64zcb_instr.sv"
-//  `include "isa/rv64zfa_instr.sv"
-//  `include "isa/rv64zawrs_instr.sv"
-//  `include "isa/riscv_z_instr.sv"
+  `include "isa/rv64zihintpause_instr.sv"
+  `include "isa/rv64zicbom_instr.sv"
+  `include "isa/rv64zicbop_instr.sv"
+  `include "isa/rv64zicboz_instr.sv"
+  //  `include "isa/rv64zvfhmin_instr.sv"
+`include "isa/rv64zvbb_instr.sv"
+  `include "isa/rv64zvkt_instr.sv"
+  `include "isa/rv64zihintntl_instr.sv"
+  `include "isa/rv64zicond_instr.sv"
+  `include "isa/rv64zimop_instr.sv"
+  `include "isa/rv64zcmop_instr.sv"
+  `include "isa/rv64zcb_instr.sv"
+  `include "isa/rv64zfa_instr.sv"
+  `include "isa/rv64zawrs_instr.sv"
+  `include "isa/riscv_z_instr.sv"
 
   `include "riscv_pseudo_instr.sv"
   `include "riscv_illegal_instr.sv"

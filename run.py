@@ -29,6 +29,7 @@ from scripts.ovpsim_log_to_trace_csv import *
 from scripts.whisper_log_trace_csv import *
 from scripts.sail_log_to_trace_csv import *
 from scripts.instr_trace_compare import *
+#from scripts.imperas_log_trace_csv import *
 
 from types import SimpleNamespace
 
@@ -140,9 +141,6 @@ def parse_iss_yaml(iss, iss_yaml, isa, setting_dir, debug_cmd):
     logging.info("Processing ISS setup file : {}".format(iss_yaml))
     yaml_data = read_yaml(iss_yaml)
 
-    # Path to the "yaml" subdirectory
-    yaml_dir = os.path.dirname(iss_yaml)
-
     # Path to the "scripts" subdirectory
     my_path = os.path.dirname(os.path.realpath(__file__))
     scripts_dir = os.path.join(my_path, "scripts")   # Search for matched ISS
@@ -170,13 +168,12 @@ def parse_iss_yaml(iss, iss_yaml, isa, setting_dir, debug_cmd):
             else:
                 cmd = re.sub("\<variant\>", isa, cmd)
             cmd = re.sub("\<scripts_path\>", scripts_dir, cmd)
-            cmd = re.sub("\<config_path\>", yaml_dir, cmd)
             return cmd
     logging.error("Cannot find ISS {}".format(iss))
     sys.exit(RET_FAIL)
 
 
-def get_iss_cmd(base_cmd, elf, log):
+def get_iss_cmd(iss,base_cmd, elf, log):
     """Get the ISS simulation command
 
     Args:
@@ -187,8 +184,17 @@ def get_iss_cmd(base_cmd, elf, log):
     Returns:
       cmd      : Command for ISS simulation
     """
-    cmd = re.sub("\<elf\>", elf, base_cmd)
-    cmd += (" &> {}".format(log))
+    if(iss == "imperas"):
+        logging.info("###################################")
+        cmd = re.sub("\<elf\>", elf, base_cmd)
+        cmd += (" --tracefile {}".format(log))
+        #cmd = re.sub("imp_iss", "imp_iss", base_cmd)
+        logging.info("{}".format(str(cmd)))
+    else:
+        logging.info("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        cmd = re.sub("\<elf\>", elf, base_cmd)
+        cmd += (" &> {}".format(log))
+    
     return cmd
 
 
@@ -240,6 +246,8 @@ def run_csr_test(cmd_list, cwd, csr_file, isa, iterations, lsf_cmd,
           (" --iterations {}".format(iterations)) + \
           (" --out {}/asm_test".format(output_dir)) + \
           (" --end_signature_addr {}".format(end_signature_addr))
+	## CUZCO CHANGES
+         ##(" --out {}/asm_test".format(output_dir)) + \
     if lsf_cmd:
         cmd_list.append(cmd)
     else:
@@ -516,7 +524,10 @@ def run_assembly(asm_test, iss_yaml, isa, mabi, gcc_opts, iss_opts, output_dir,
         log_list.append(log)
         base_cmd = parse_iss_yaml(iss, iss_yaml, isa, setting_dir, debug_cmd)
         logging.info("[{}] Running ISS simulation: {}".format(iss, elf))
-        cmd = get_iss_cmd(base_cmd, elf, log)
+        cmd = get_iss_cmd(iss,base_cmd, elf, log)
+        cmd = re.sub("imp_iss", "imp_iss", cmd)
+        logging.info("CMD output --- {}".format(cmd))
+	
         run_cmd(cmd, 10, debug_cmd=debug_cmd)
         logging.info("[{}] Running ISS simulation: {} ...done".format(iss, elf))
     if len(iss_list) == 2:
@@ -608,7 +619,7 @@ def run_c(c_test, iss_yaml, isa, mabi, gcc_opts, iss_opts, output_dir,
         log_list.append(log)
         base_cmd = parse_iss_yaml(iss, iss_yaml, isa, setting_dir, debug_cmd)
         logging.info("[{}] Running ISS simulation: {}".format(iss, elf))
-        cmd = get_iss_cmd(base_cmd, elf, log)
+        cmd = get_iss_cmd(iss,base_cmd, elf, log)
         run_cmd(cmd, 10, debug_cmd=debug_cmd)
         logging.info("[{}] Running ISS simulation: {} ...done".format(iss, elf))
     if len(iss_list) == 2:
@@ -673,7 +684,7 @@ def iss_sim(test_list, output_dir, iss_list, iss_yaml, iss_opts,
                         output_dir, test['test'], i))
                     elf = prefix + ".o"
                     log = ("{}/{}_{}.log".format(log_dir, test['test'], i))
-                    cmd = get_iss_cmd(base_cmd, elf, log)
+                    cmd = get_iss_cmd(iss,base_cmd, elf, log)
                     if 'iss_opts' in test:
                         cmd += ' '
                         cmd += test['iss_opts']
@@ -737,6 +748,8 @@ def compare_iss_log(iss_list, log_list, report, stop_on_first_error=0,
                 process_sail_sim_log(log, csv)
             elif iss == "whisper":
                 process_whisper_sim_log(log, csv)
+            elif iss == "imperas":
+                process_imperas_sim_log(log, csv)
             else:
                 logging.error("Unsupported ISS {}".format(iss))
                 sys.exit(RET_FAIL)
@@ -779,7 +792,7 @@ def parse_args(cwd):
     parser.add_argument("--target", type=str, default="rv32imc",
                         help="Run the generator with pre-defined targets: \
                             rv32imc, rv32i, rv32imafdc, rv64imc, rv64gc, \
-                            rv64imafdc")
+                            rv64imafdc,rv64ia,rv64zb")
     parser.add_argument("-o", "--output", type=str,
                         help="Output directory name", dest="o")
     parser.add_argument("-tl", "--testlist", type=str, default="",
@@ -962,6 +975,9 @@ def load_config(args, cwd):
         elif args.target == "rv64imcb":
             args.mabi = "lp64"
             args.isa = "rv64imcb"
+        elif args.target == "rv64zb":
+            args.mabi = "lp64"
+            args.isa = "rv64zb"
         elif args.target == "rv64gc":
             args.mabi = "lp64"
             args.isa = "rv64gc"
@@ -974,6 +990,66 @@ def load_config(args, cwd):
         elif args.target == "rv64imafdc":
             args.mabi = "lp64"
             args.isa = "rv64imafdc"
+        elif args.target == "rv64zk":
+            args.mabi = "lp64"
+            args.isa = "rv64zk"
+        elif args.target == "rv64ia":
+            args.mabi = "lp64"
+            args.isa = "rv64ia"
+        elif args.target == "rv64zba":
+            args.mabi = "lp64"
+            args.isa = "rv64zba"
+        elif args.target == "rv64zbb":
+            args.mabi = "lp64"
+            args.isa = "rv64zbb"
+        elif args.target == "rv64zbc":
+            args.mabi = "lp64"
+            args.isa = "rv64zbc"
+        elif args.target == "rv64zbkc":
+            args.mabi = "lp64"
+            args.isa = "rv64zbkc"
+        elif args.target == "rv64zbkb":
+            args.mabi = "lp64"
+            args.isa = "rv64zbkb"
+        elif args.target == "rv64zbs":
+            args.mabi = "lp64"
+            args.isa = "rv64zbs"
+        elif args.target == "rv64zbsm":
+            args.mabi = "lp64"
+            args.isa = "rv64zbsm"
+        elif args.target == "rv64zbk":
+            args.mabi = "lp64"
+            args.isa = "rv64zbk"
+        elif args.target == "rv64zknd":
+            args.mabi = "lp64"
+            args.isa = "rv64zknd"
+        elif args.target == "rv64zkne":
+            args.mabi = "lp64"
+            args.isa = "rv64zkne"
+        elif args.target == "rv64zknh":
+            args.mabi = "lp64"
+            args.isa = "rv64zknh"
+        elif args.target == "rv64zksed":
+            args.mabi = "lp64"
+            args.isa = "rv64zksed"
+        elif args.target == "rv64zksh":
+            args.mabi = "lp64"
+            args.isa = "rv64zksh"
+        elif args.target == "rv64imzba":
+            args.mabi = "lp64"
+            args.isa = "rv64imzba"
+        elif args.target == "rv64fh":
+            args.mabi = "lp64"
+            args.isa = "rv64fh"
+        elif args.target == "rv32fh":
+            args.mabi = "lp64"
+            args.isa = "rv32fh"
+        elif args.target == "rv16fh":
+            args.mabi = "lp64"
+            args.isa = "rv16fh"
+        elif args.target == "rv64zhext":
+            args.mabi = "lp64"
+            args.isa = "rv64zhext"
         else:
             sys.exit("Unsupported pre-defined target: {}".format(args.target))
     else:
@@ -1168,3 +1244,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
