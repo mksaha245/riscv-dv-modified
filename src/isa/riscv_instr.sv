@@ -15,7 +15,7 @@
  */
 
 class riscv_instr extends uvm_object;
-
+  static riscv_reg_t           tmp_reg;
   // All derived instructions
   static bit                 instr_registry[riscv_instr_name_t];
 
@@ -45,6 +45,7 @@ class riscv_instr extends uvm_object;
   rand riscv_reg_t           rs1;
   rand riscv_reg_t           rd;
   rand bit [31:0]            imm;
+  rand bit [31:0]            b_imm;
 
   // Helper fields
   bit [31:0]                 imm_mask = 32'hFFFF_FFFF;
@@ -80,6 +81,12 @@ class riscv_instr extends uvm_object;
     }
   }
 
+constraint ls_c{
+    if (instr_name inside {SB,SH,SW,SD,LB,LH,LW,LD,LWU}) {
+    //if (category inside {STORE,LOAD})	{
+      imm[1:0] == 0;
+    }
+}
 
   `uvm_object_utils(riscv_instr)
   `uvm_object_new
@@ -304,14 +311,21 @@ class riscv_instr extends uvm_object;
   virtual function void set_imm_len();
     if(format inside {U_FORMAT, J_FORMAT}) begin
       imm_len = 20;
-    end else if(format inside {I_FORMAT, S_FORMAT, B_FORMAT}) begin
+    end 
+    else if(format inside {I_FORMAT, S_FORMAT, B_FORMAT}) begin
       if(imm_type == UIMM) begin
         imm_len = 5;
-      end else begin
+      end
+      else begin
         imm_len = 12;
       end
+      imm_mask = imm_mask << imm_len;
     end
-    imm_mask = imm_mask << imm_len;
+      if(instr_name inside {BEQC, BNEC, BBC, BBS, BFOS, BFOZ}) begin
+        imm_len = 18;
+        `uvm_info("riscv_instr", $sformatf("mukesh -> imm_len = %0d",imm_len), UVM_LOW)
+	b_imm = imm;
+      end
   endfunction
 
   virtual function void extend_imm();
@@ -354,7 +368,7 @@ class riscv_instr extends uvm_object;
         S_FORMAT, B_FORMAT: // instr rs1,rs2,imm
           if(category == STORE) // Use psuedo instruction format
             asm_str = $sformatf("%0s%0s, %0s(%0s)", asm_str, rs2.name(), get_imm(), rs1.name());
-          else
+          else 
             asm_str = $sformatf("%0s%0s, %0s, %0s", asm_str, rs1.name(), rs2.name(), get_imm());
         R_FORMAT: // instr rd,rs1,rs2
           if(instr_name == SFENCE_VMA) begin
@@ -368,6 +382,8 @@ class riscv_instr extends uvm_object;
     end else begin
       // For EBREAK,C.EBREAK, making sure pc+4 is a valid instruction boundary
       // This is needed to resume execution from epc+4 after ebreak handling
+      if(instr_name == ECALL)
+        asm_str = "li a7,64 \n\t\t  ecall ";
       if(instr_name == EBREAK) begin
         asm_str = ".4byte 0x00100073 # ebreak";
       end
@@ -623,3 +639,4 @@ class riscv_instr extends uvm_object;
   `include "isa/riscv_instr_cov.svh"
 
 endclass
+
