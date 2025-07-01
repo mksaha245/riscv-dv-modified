@@ -31,7 +31,8 @@
                     "riscv_instr_cover_group") \
     cg.sample(t); \
   end
-
+	  //amo_cov_change
+`define SAMPLE_A(cg, val) `SAMPLE_W_TYPE(cg, val, riscv_amo_instr)
 `define SAMPLE_F(cg, val) `SAMPLE_W_TYPE(cg, val, riscv_floating_point_instr)
 `define SAMPLE_B(cg, val) `SAMPLE_W_TYPE(cg, val, riscv_b_instr)
 `define SAMPLE_ZBA(cg, val) `SAMPLE_W_TYPE(cg, val, riscv_zba_instr)
@@ -41,7 +42,48 @@
 
 `define INSTR_CG_BEGIN(INSTR_NAME, INSTR_CLASS = riscv_instr) \
   covergroup ``INSTR_NAME``_cg with function sample(INSTR_CLASS instr);
+	  //amo_cov_change
+/*`define A_LOAD_INSTR_CG_BEGIN(INSTR_NAME) \
+ `INSTR_CG_BEGIN(INSTR_NAME) \
+    cp_rs1         : coverpoint instr.rs1; \
+    cp_rs2         : coverpoint instr.rs2; \
+    cp_rd          : coverpoint instr.rd;  \
+    cp_rs1_sign    : coverpoint instr.rs1_sign; \
+    cp_rs2_sign    : coverpoint instr.rs2_sign; \
+    cp_rd_sign     : coverpoint instr.rd_sign; \
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) \
 
+`define A_STORE_INSTR_CG_BEGIN(INSTR_NAME \	//, PRECISION = S) \
+  `INSTR_CG_BEGIN(INSTR_NAME, riscv_floating_point_instr) \
+    cp_rs1         : coverpoint instr.rs1 { \
+        `DV(ignore_bins zero = {ZERO};) \
+    } \
+    cp_rs2         : coverpoint instr.rs2; \
+    cp_imm_sign    : coverpoint instr.imm_sign; \
+    `FP_SPECIAL_VALUES_CP(instr.rs2_value, rs2_value \  //, PRECISION) \
+    `DV(cp_gpr_hazard  : coverpoint instr.gpr_hazard { \
+      bins valid_hazard[] = {NO_HAZARD, RAW_HAZARD}; \
+    }) \
+    `DV(cp_lsu_hazard  : coverpoint instr.lsu_hazard { \
+      bins valid_hazard[] = {NO_HAZARD, WAR_HAZARD, WAW_HAZARD}; \
+    })
+
+`define A_R_INSTR_CG_BEGIN(INSTR_NAME, PRECISION = S) \
+  `INSTR_CG_BEGIN(INSTR_NAME, riscv_floating_point_instr) \
+    cp_rs1         : coverpoint instr.rs1; \
+    cp_rs2         : coverpoint instr.rs2; \
+    cp_rd          : coverpoint instr.rd;  \
+    cp_rs1_sign    : coverpoint instr.rs1_sign; \
+    cp_rs2_sign    : coverpoint instr.rs2_sign; \
+    cp_rd_sign     : coverpoint instr.rd_sign; \
+    `FP_SPECIAL_VALUES_CP(instr.rs1_value, rs1_value \//, PRECISION) \
+    `FP_SPECIAL_VALUES_CP(instr.rs2_value, rs2_value \//, PRECISION) \
+    `FP_SPECIAL_VALUES_CP(instr.rd_value, rd_value \//, PRECISION) \
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) \*/
+//`define AR_INSTR_CG_BEGIN(INSTR_NAME, PRECISION = S) \
+//  `INSTR_CG_BEGIN(INSTR_NAME) \
+    
+    
 `define R_INSTR_CG_BEGIN(INSTR_NAME) \
   `INSTR_CG_BEGIN(INSTR_NAME) \
     cp_rs1         : coverpoint instr.rs1; \
@@ -507,8 +549,153 @@ class riscv_instr_cover_group;
 
   `VECTOR_INCLUDE("riscv_instr_cover_group_inc_cpu_declare.sv")
 
-  ///////////// RV32I instruction functional coverage //////////////
+  ///////////// RV32A instruction functional coverage //////////////
+   //Atomic instr coverage//
+	//amo_cov_change    
+////////////////amo_cg_changes_begin///////////////////
+  // Atomic instrcution(RV32A)
+  `INSTR_CG_BEGIN(amoadd_w)
+    cp_rs1         : coverpoint instr.rs1; 
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd       : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) 
+    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
 
+  `INSTR_CG_BEGIN(lr_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         :   coverpoint instr.rd;
+    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(sc_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         :  coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;)    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoswap_w)	
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //  cp_rs1         : coverpoint instr.rs1{ignore_bins gpr[] = {T6}; }
+    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoor_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoxor_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amomin_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amomax_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amominu_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amomaxu_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoand_w)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) 
+  `CG_END
+  ///////////// RV64A instruction functional coverage //////////////
+// Atomic instrcution(RV64A)
+  `INSTR_CG_BEGIN(amoadd_d)
+    cp_rs1         : coverpoint instr.rs1; 
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd       : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) 
+    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+
+  `INSTR_CG_BEGIN(lr_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         :   coverpoint instr.rd;
+    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(sc_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         :  coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;)    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoswap_d)	
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //  cp_rs1         : coverpoint instr.rs1{ignore_bins gpr[] = {T6}; }
+    //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoor_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoxor_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amomin_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amomax_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amominu_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amomaxu_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) //cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
+  `CG_END
+  `INSTR_CG_BEGIN(amoand_d)
+    cp_rs1         : coverpoint instr.rs1;
+    cp_rs2         : coverpoint instr.rs2;
+    cp_rd         : coverpoint instr.rd;
+    `DV(cp_gpr_hazard : coverpoint instr.gpr_hazard;) 
+  `CG_END
+
+  ///////////// RV32I instruction functional coverage //////////////
   // Arithmetic instructions
   `R_INSTR_CG_BEGIN(add)
     cp_sign_cross: cross cp_rs1_sign, cp_rs2_sign, cp_rd_sign;
@@ -1803,6 +1990,39 @@ class riscv_instr_cover_group;
     end
 
    `VECTOR_INCLUDE("riscv_instr_cover_group_inc_cg_instantiation.sv")
+   
+   //Atomic instr coverage//
+	//amo_cov_change    
+////////////////amo_cg_changes_begin///////////////////
+    `CG_SELECTOR_BEGIN(RV32A)
+    amoadd_w_cg=new();
+    lr_w_cg=new();
+    sc_w_cg=new();
+    amoswap_w_cg=new();
+    amoadd_w_cg=new();
+    amoand_w_cg=new();
+    amoor_w_cg=new();
+    amoxor_w_cg=new();
+    amomin_w_cg=new();
+    amomax_w_cg=new();
+    amominu_w_cg=new();
+    amomaxu_w_cg=new();
+    `CG_SELECTOR_END
+`CG_SELECTOR_BEGIN(RV64A)
+	amoadd_d_cg=new();
+	lr_d_cg=new();
+	sc_d_cg=new();
+	amoswap_d_cg=new();
+	amoadd_d_cg=new();
+	amoand_d_cg=new();
+	amoor_d_cg=new();
+	amoxor_d_cg=new();
+	amomin_d_cg=new();
+	amomax_d_cg=new();
+	amominu_d_cg=new();
+	amomaxu_d_cg=new();
+    `CG_SELECTOR_END
+//////////////amo_cg_changes_end///////////////////////
 
     // RV32I instruction functional coverage instantiation
     `CG_SELECTOR_BEGIN(RV32I)
@@ -2145,33 +2365,33 @@ class riscv_instr_cover_group;
     `CG_SELECTOR_END
 
     // Ignore the exception which cannot be covered when running with ISS
-    if (iss_mode) begin
-      int i;
-      ignored_exceptions = {INSTRUCTION_ACCESS_FAULT, LOAD_ACCESS_FAULT};
-      if (support_unaligned_load_store) begin
+    //if (iss_mode) begin
+      //int i;
+      //ignored_exceptions = {INSTRUCTION_ACCESS_FAULT, LOAD_ACCESS_FAULT};
+      /*if (support_unaligned_load_store) begin
         ignored_exceptions = {ignored_exceptions, LOAD_ADDRESS_MISALIGNED};
       end
-    end
+    end*/
 
     foreach (riscv_instr_pkg::implemented_exception[i]) begin
-      if (!(riscv_instr_pkg::implemented_exception[i] inside {ignored_exceptions})) begin
+      //if (!(riscv_instr_pkg::implemented_exception[i] inside {ignored_exceptions})) begin
         exception_list.push_back(riscv_instr_pkg::implemented_exception[i]);
-      end
+    //  end
     end
 
-    if (!compliance_mode) begin
-      if (!iss_mode) begin
+    //if (!compliance_mode) begin
+     // if (!iss_mode) begin
         // Expect to cover below coverpoint in RTL sim mode only
         privileged_csr_cg = new();
         mcause_exception_cg = new();
         mcause_interrupt_cg = new();
         mstatus_m_cg = new();
         fcsr_cg = new();
-      end
+      //end
       if (!cfg.disable_compressed_instr) begin
         mepc_alignment_cg = new();
       end
-    end
+    //end
   endfunction
 
   function void sample(riscv_instr instr);
@@ -2188,6 +2408,34 @@ class riscv_instr_cover_group;
       `SAMPLE(opcode_cg, instr.binary[6:2]);
     end
     case (instr.instr_name)
+      
+	//Atomic instr coverage
+	//amo_cov_change    
+////////////////amo_cg_begin///////////////////////////
+      LR_W   	 :`SAMPLE_A(lr_w_cg, instr)
+      SC_W    	 :`SAMPLE_A(sc_w_cg, instr)
+      AMOSWAP_W	 :`SAMPLE_A(amoswap_w_cg, instr)
+      AMOADD_W	 :`SAMPLE_A(amoadd_w_cg, instr)
+      AMOAND_W	 :`SAMPLE_A(amoand_w_cg, instr)
+      AMOOR_W	 :`SAMPLE_A(amoor_w_cg, instr)
+      AMOXOR_W	 :`SAMPLE_A(amoxor_w_cg, instr)
+      AMOMIN_W	 :`SAMPLE_A(amomin_w_cg, instr)
+      AMOMAX_W	 :`SAMPLE_A(amomax_w_cg, instr)
+      AMOMINU_W	 :`SAMPLE_A(amominu_w_cg, instr)
+      AMOMAXU_W	 :`SAMPLE_A(amomaxu_w_cg, instr)
+
+	LR_D   	  :`SAMPLE_A(lr_d_cg, instr)
+	SC_D      :`SAMPLE_A(sc_d_cg, instr)
+	AMOSWAP_D :`SAMPLE_A(amoswap_d_cg, instr)
+	AMOADD_D  :`SAMPLE_A(amoadd_d_cg, instr)
+	AMOAND_D  :`SAMPLE_A(amoand_d_cg, instr)
+	AMOOR_D   :`SAMPLE_A(amoor_d_cg, instr)
+	AMOXOR_D  :`SAMPLE_A(amoxor_d_cg, instr)
+	AMOMIN_D  :`SAMPLE_A(amomin_d_cg, instr)
+	AMOMAX_D  :`SAMPLE_A(amomax_d_cg, instr)
+	AMOMINU_D :`SAMPLE_A(amominu_d_cg, instr)
+	AMOMAXU_D :`SAMPLE_A(amomaxu_d_cg, instr)
+////////////////amo_cg_end/////////////////////////////
       ADD        : `SAMPLE(add_cg, instr)
       SUB        : `SAMPLE(sub_cg, instr)
       ADDI       : `SAMPLE(addi_cg, instr)
@@ -2542,7 +2790,7 @@ class riscv_instr_cover_group;
           riscv_instr::instr_registry.exists(instr_name)) begin
         instr = riscv_instr::create_instr(instr_name);
         if ((instr.group inside {supported_isa}) &&
-            (instr.group inside {RV32I, RV32M, RV64M, RV64I, RV32C, RV64C,
+            (instr.group inside {RV32A, RV64A, RV32I, RV32M, RV64M, RV64I, RV32C, RV64C,
                                  RVV, RV64B, RV32B,
                                  RV32ZBA, RV32ZBB, RV32ZBC, RV32ZBS,
                                  RV64ZBA, RV64ZBB, RV64ZBC, RV64ZBS})) begin

@@ -1047,6 +1047,9 @@ def load_config(args, cwd):
         elif args.target == "rv16fh":
             args.mabi = "lp64"
             args.isa = "rv16fh"
+        elif args.target == "rv64v5":
+            args.mabi = "lp64"
+            args.isa = "rv64v5"
         elif args.target == "rv64zhext":
             args.mabi = "lp64"
             args.isa = "rv64zhext"
