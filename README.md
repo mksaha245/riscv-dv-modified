@@ -19,6 +19,7 @@ processor verification. It currently supports the following features:
 - Handshake communication with testbench
 - Support handcoded assembly test
 - Co-simulation with multiple ISS : spike, riscv-ovpsim, whisper, sail-riscv
+- Additional support for Bitmaps, Crypto, Andes v5, RVA23 ISA.
 
 ## Getting Started
 
