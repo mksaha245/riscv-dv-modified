@@ -131,8 +131,9 @@ constraint rd_c{
         if (instr_name inside { PAUSE, NTL_P1, NTL_PALL,NTL_S1, NTL_ALL, C_MOP_1, C_MOP_3, C_MOP_5, C_MOP_7, C_MOP_9, C_MOP_11,C_MOP_13, C_MOP_15, WRS_NTO, WRS_STO}) begin  // instr 
           asm_str_final = $sformatf("%0s", asm_str);
         end
-        else if (instr_name inside {CBO_CLEAN,CBO_FLUSH,CBO_INVAL,CBO_ZERO}) begin  // instr (rs1)
-          asm_str_final = $sformatf("%0s (%0s)", asm_str, rs1.name());
+        else if ((category == LOAD) && instr_name inside {CBO_CLEAN,CBO_FLUSH,CBO_INVAL,CBO_ZERO}) begin  // instr (rs1)
+          `uvm_info(`gfn, $sformatf("CBO_UNIT 2asm -> instr name - %0s", asm_str), UVM_LOW)
+          asm_str_final = $sformatf("%0s %0s(%0s)", asm_str,get_imm(), rs1.name());
         end
 	// Inst present in vectore ext
         /*else if (instr_name inside {VFNCVT_F_F_W,VFWCVT_F_F_V}) begin  // instr vd,vs2,imm
@@ -308,7 +309,9 @@ constraint rd_c{
   endfunction : do_copy
 
   virtual function bit is_supported(riscv_instr_gen_config cfg);
-    return 1; 
+   // return 1; 
+   return (instr_name inside {
+        NTL_P1,NTL_PALL,NTL_S1,NTL_ALL,CBO_ZERO,PREFETCH_I,PREFETCH_R,PREFETCH_W,CBO_CLEAN,CBO_FLUSH,CBO_INVAL});
   endfunction
 
   // coverage related functons
