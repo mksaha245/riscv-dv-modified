@@ -20,12 +20,14 @@ class riscv_floating_point_instr extends riscv_instr;
   rand riscv_fpr_t fs2;
   rand riscv_fpr_t fs3;
   rand riscv_fpr_t fd;
+  rand riscv_reg_t rd;
   rand f_rounding_mode_t rm;
   rand bit use_rounding_mode_from_instr;
   bit              has_fs1 = 1'b1;
   bit              has_fs2 = 1'b1;
   bit              has_fs3 = 1'b0;
   bit              has_fd  = 1'b1;
+  bit              has_rd  = 1'b1;
 
   `uvm_object_utils(riscv_floating_point_instr)
   `uvm_object_new
@@ -42,6 +44,9 @@ class riscv_floating_point_instr extends riscv_instr;
         fd inside {[FA0:FA5]};
       }
     }
+      if (has_rd) {
+        rd != ZERO;
+      }
 }
   // Convert the instruction to assembly code
   virtual function string convert2asm(string prefix = "");
@@ -53,11 +58,19 @@ class riscv_floating_point_instr extends riscv_instr;
           asm_str = $sformatf("%0s%0s, %0s(%0s)", asm_str, fd.name(), get_imm(), rs1.name());
         end else if (instr_name inside {FMV_X_W, FMV_X_D, FCVT_W_S, FCVT_WU_S,
                                         FCVT_L_S, FCVT_LU_S, FCVT_L_D, FCVT_LU_D,
-                                        FCVT_W_D, FCVT_WU_D}) begin
+                                        FCVT_W_D, FCVT_WU_D,
+					// Additional instruction for FPH ext
+				        FCVT_W_H, FCVT_WU_H, FMV_X_H, FCVT_L_H, FCVT_LU_H,
+			     	        // Additional instruction for ZFA ext
+				        FMVH_X_D, FMVP_D_X, FCVTMOD_W_D }) begin
           asm_str = $sformatf("%0s%0s, %0s", asm_str, rd.name(), fs1.name());
+        end else if (instr_name inside {FLI_S, FLI_D, FLI_H}) begin
+          asm_str = $sformatf("%0s%0s, %0s", asm_str, fd.name(), fs1.name());
         end else if (instr_name inside {FMV_W_X, FMV_D_X, FCVT_S_W, FCVT_S_WU,
                                         FCVT_S_L, FCVT_D_L, FCVT_S_LU, FCVT_D_W,
-                                        FCVT_D_LU, FCVT_D_WU}) begin
+                                        FCVT_D_LU, FCVT_D_WU,
+					// Additional instruction for FPH ext
+					FCVT_H_W, FCVT_H_WU, FCVT_H_L, FCVT_H_LU, FMV_H_X}) begin
           asm_str = $sformatf("%0s%0s, %0s", asm_str, fd.name(), rs1.name());
         end else begin
           asm_str = $sformatf("%0s%0s, %0s", asm_str, fd.name(), fs1.name());
@@ -67,7 +80,8 @@ class riscv_floating_point_instr extends riscv_instr;
       R_FORMAT:
         if (category == COMPARE) begin
           asm_str = $sformatf("%0s%0s, %0s, %0s", asm_str, rd.name(), fs1.name(), fs2.name());
-        end else if (instr_name inside {FCLASS_S, FCLASS_D}) begin
+	// Adding FCLASS_H from FPH extension
+        end else if (instr_name inside {FCLASS_S, FCLASS_D, FCLASS_H}) begin
           asm_str = $sformatf("%0s%0s, %0s", asm_str, rd.name(), fs1.name());
         end else begin
           asm_str = $sformatf("%0s%0s, %0s, %0s", asm_str, fd.name(), fs1.name(), fs2.name());
@@ -90,7 +104,14 @@ class riscv_floating_point_instr extends riscv_instr;
         !(instr_name inside {FMIN_S, FMAX_S, FMIN_D, FMAX_D, FMV_W_X, FMV_X_W,
                              FMV_D_X, FMV_X_D, FCLASS_S, FCLASS_D,
                              FCVT_D_S, FCVT_D_W, FCVT_D_WU,
-                             FSGNJ_S, FSGNJN_S, FSGNJX_S, FSGNJ_D, FSGNJN_D, FSGNJX_D})) begin
+                             FSGNJ_S, FSGNJN_S, FSGNJX_S, FSGNJ_D, FSGNJN_D, FSGNJX_D,
+			     // Additional instruction for FPH ext
+			     FMIN_H, FMAX_H, FMV_X_H, FMV_H_X, FSGNJ_H, FSGNJN_H, 
+			     FSGNJX_H, FCLASS_H, FCVT_D_H , FCVT_S_H,
+			     // Additional instruction for ZFA ext
+			     FMVH_X_D, FMVP_D_X, 
+			     FMINM_S, FMAXM_S, FMINM_D, FMAXM_D, FMINM_H, FMAXM_H
+			     })) begin
       asm_str = {asm_str, ", ", rm.name()};
     end
     if(comment != "")
@@ -113,10 +134,12 @@ class riscv_floating_point_instr extends riscv_instr;
     this.fs2     = rhs_.fs2;
     this.fs1     = rhs_.fs1;
     this.fd      = rhs_.fd;
+    this.rd      = rhs_.rd;
     this.has_fs3 = rhs_.has_fs3;
     this.has_fs2 = rhs_.has_fs2;
     this.has_fs1 = rhs_.has_fs1;
     this.has_fd  = rhs_.has_fd;
+    this.has_rd  = rhs_.has_rd;
   endfunction : do_copy
 
   virtual function void set_rand_mode();
@@ -131,12 +154,16 @@ class riscv_floating_point_instr extends riscv_instr;
           has_imm = 1'b1;
         end else if (instr_name inside {FMV_X_W, FMV_X_D, FCVT_W_S, FCVT_WU_S,
                                         FCVT_L_S, FCVT_LU_S, FCVT_L_D, FCVT_LU_D, FCVT_LU_S,
-                                        FCVT_W_D, FCVT_WU_D}) begin
+                                        FCVT_W_D, FCVT_WU_D,
+			     		// Additional instruction for FPH ext
+					FMV_X_H, FCVT_W_H, FCVT_WU_H, FCVT_L_H, FCVT_LU_H}) begin
           has_fd = 1'b0;
           has_rd = 1'b1;
         end else if (instr_name inside {FMV_W_X, FMV_D_X, FCVT_S_W, FCVT_S_WU,
                                         FCVT_S_L, FCVT_D_L, FCVT_S_LU, FCVT_D_W,
-                                        FCVT_D_LU, FCVT_D_WU}) begin
+                                        FCVT_D_LU, FCVT_D_WU,
+			     		// Additional instruction for FPH ext
+					FMV_H_X, FCVT_H_W, FCVT_H_WU, FCVT_H_L, FCVT_H_LU}) begin
           has_rs1 = 1'b1;
           has_fs1 = 1'b0;
         end
@@ -151,7 +178,7 @@ class riscv_floating_point_instr extends riscv_instr;
         if (category == COMPARE) begin
           has_rd = 1'b1;
           has_fd = 1'b0;
-        end else if (instr_name inside {FCLASS_S, FCLASS_D}) begin
+        end else if (instr_name inside {FCLASS_S, FCLASS_D, FCLASS_H}) begin
           has_rd = 1'b1;
           has_fd = 1'b0;
           has_fs2 = 1'b0;
@@ -223,7 +250,9 @@ class riscv_floating_point_instr extends riscv_instr;
         // convert Pseudoinstructions for ovpsim
         // fmv.s rd, rs -> fsgnj.s rd, rs, rs
         if (operands.size() == 2 && instr_name inside {FSGNJ_S, FSGNJX_S, FSGNJN_S, FSGNJ_D,
-                                                       FSGNJX_D, FSGNJN_D}) begin
+                                                       FSGNJX_D, FSGNJN_D,
+			     			       // Additional instruction for FPH ext
+						       FSGNJ_H, FSGNJN_H, FSGNJX_H}) begin
           operands.push_back(operands[$]);
         end
 
@@ -288,6 +317,23 @@ class riscv_floating_point_instr extends riscv_instr;
     end else if (instr_name == FCVT_D_S) begin
       fs1_sign = get_fp_operand_sign(fs1_value, 31);
       fd_sign = get_fp_operand_sign(fd_value, 63);
+    end else if (group inside {RV16FH, RV32FH, RV64FH}) begin
+      fs1_sign = get_fp_operand_sign(fs1_value, 31);
+      fs2_sign = get_fp_operand_sign(fs2_value, 31);
+      fs3_sign = get_fp_operand_sign(fs3_value, 31);
+      fd_sign = get_fp_operand_sign(fd_value, 31);
+    end else if (instr_name == FCVT_D_H) begin
+      fs1_sign = get_fp_operand_sign(fs1_value, 15);
+      fd_sign = get_fp_operand_sign(fd_value, 63);
+    end else if (instr_name == FCVT_H_D) begin
+      fs1_sign = get_fp_operand_sign(fs1_value, 63);
+      fd_sign = get_fp_operand_sign(fd_value, 15);
+    end else if (instr_name == FCVT_S_H) begin
+      fs1_sign = get_fp_operand_sign(fs1_value, 15);
+      fd_sign = get_fp_operand_sign(fd_value, 31);
+    end else if (instr_name == FCVT_H_S) begin
+      fs1_sign = get_fp_operand_sign(fs1_value, 31);
+      fd_sign = get_fp_operand_sign(fd_value, 15);
     end else begin
       fs1_sign = get_fp_operand_sign(fs1_value, 63);
       fs2_sign = get_fp_operand_sign(fs2_value, 63);
@@ -323,3 +369,4 @@ class riscv_floating_point_instr extends riscv_instr;
     end
   endfunction
 endclass
+
