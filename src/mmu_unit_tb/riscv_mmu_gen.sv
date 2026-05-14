@@ -9,11 +9,11 @@
   } riscv_reg_t;
 */
 typedef enum bit [3:0] {
-  	BARE ='h0,
-    SV32 ='h7,
-  	SV39 ='h8,
-  	SV48 ='h9,
-  	SV57 ='ha
+  	BAREM ='h0,
+    SV32M ='h7,
+  	SV39M ='h8,
+  	SV48M ='h9,
+  	SV57M ='ha
 }atp_mode;
 
 typedef enum bit [3:0] {
@@ -24,10 +24,10 @@ typedef enum bit [3:0] {
 }page_size_t;
 
 /*typedef enum bit [2:0] {
-	BARE ='h0,
-  	SV39 ='h8,
-  	SV48 ='h9,
-  	SV57 ='ha
+	BAREM ='h0,
+  	SV39M ='h8,
+  	SV48M ='h9,
+  	SV57M ='ha
 }hgatp_mode;
 */
 
@@ -43,9 +43,9 @@ class riscv_mmu_gen;
   int num_g_load_page_fault=0,num_g_store_page_fault=0,num_g_inst_access_page_fault=0;
   page_size_t init_page_size = P4KB;
   page_size_t guest_page_size = P1GB;
-  atp_mode hgatp_m = BARE;
-  atp_mode vsatp_m = BARE;
-  atp_mode satp_m = SV48;
+  atp_mode hgatp_m = BAREM;
+  atp_mode vsatp_m = BAREM;
+  atp_mode satp_m = SV48M;
   //vsatp_mode = vsatp[39:60]
   //hgatp_mode = hgatp[63:60]
   riscv_reg_t rd,rd_reg;
@@ -82,8 +82,8 @@ class riscv_mmu_gen;
   logic[39:0] GVA_3_OFFSET,GVA_2_OFFSET,GVA_1_OFFSET,GVA_0_OFFSET,GVA_00_OFFSET;
   logic[63:0] PTE_ADDR_3,PTE_ADDR_2,PTE_ADDR_1,PTE_ADDR_0,PA,PTE;
   logic[11:0] GVA_VPN_OFFSET;
-  task mmu_gen(string instr_st);
-    instr_st.push_back("I'm inside mmu gen");
+  function void mmu_gen(string instr_st[$]);
+    instr_st.push_back($sformatf("I'm inside mmu gen"));
   //initial begin
     en_hv_inst=0;
     is_sup = 1;
@@ -103,8 +103,9 @@ class riscv_mmu_gen;
     vsatp_ppn = vsatp[43:0];
     vsatp_ppn = (vsatp_ppn <<2)>>2; //vsatp_ppn[43:42] = 'h0
     hgatp_ppn = (hgatp[43:0]>>2)<<2;
-    rd_reg = $random();
-    rd = $cast(rd,rd_reg.name().tolower());
+    rd_reg = riscv_reg_t'($random());
+    //rd = $cast(rd,rd_reg.name().tolower());
+    rd = riscv_reg_t'(rd_reg.name().tolower());
     // Gen_fault logic
     enable_g_load_page_fault=0;
     enable_load_page_fault=1;
@@ -141,14 +142,14 @@ class riscv_mmu_gen;
       $fatal("ERROR : hgatp[%0d:%0d] can't be 0 for %0s page translation, please provide value >> 0,hgatp_ppn = %0b",(9*(guest_page_size+1))+12,(9*guest_page_size)+12,guest_page_size,hgatp[(9*(guest_page_size+1))+12+:9]);
     end
     
-    if(vsatp_m==SV39)
+    if(vsatp_m==SV39M)
       assert(vsatp[36:27]==0);
     
-    if(hgatp_m==SV39)
+    if(hgatp_m==SV39M)
       assert(hgatp[36:27]==0);
     
-    if((vsatp_m!=SV48 & satp_m!=SV48) && (init_page_size==P512GB))
-      $fatal("Can Generate 512gb page in SV39 is less satp mode");
+    if((vsatp_m!=SV48M & satp_m!=SV48M) && (init_page_size==P512GB))
+      $fatal("Can Generate 512gb page in SV39M is less satp mode");
     
     $display("\n\n#define PC_GVA 0x%0h",`PC_GVA);
     $display("#define DATA_GVA 0x%0h\n\n",`DATA_GVA);
@@ -183,7 +184,7 @@ class riscv_mmu_gen;
 			 \n\txor x10,x10,x25	\
 			 \n\thlvx.wu x15,(x10)");
     end
-  endtask
+  endfunction
     /*if(stage_2_g_fault)begin
       gen_guest_page_fault();
     end
@@ -191,14 +192,14 @@ class riscv_mmu_gen;
       gen_page_fault();
     end*/
 
-    task pmp_setup();
+    function void pmp_setup();
       $display("pmp_setup:");
       $display("csrwi pmpcfg0,0xf");
       $display("li x5,-1");
       $display("csrw pmpaddr0,x5");
-  endtask
+  endfunction
     
-  task mstatus_setup();
+  function void mstatus_setup();
     if(en_hv_inst)begin
       	$display("mstatus_setup:");
       $display("\tli x16, 0x80001EE00");
@@ -234,9 +235,9 @@ class riscv_mmu_gen;
       $display("\tli x30,0x%0h",v_mode_on);
       $display("\tcsrc mstatus,x30 	// setting MPRV = 0\n");
     end
-  endtask
+  endfunction
     
-  task pte_calculation(input[63:0] input_gva);
+  function void pte_calculation(input[63:0] input_gva);
     
       
     set_size = 48;
@@ -255,12 +256,12 @@ class riscv_mmu_gen;
     else if(init_page_size==P512GB)
       GVA_3_OFFSET = GVA_3[38:0];
 
-    if(vsatp_m!=BARE)begin
+    if(vsatp_m!=BAREM)begin
     $display("// VSATP(Virtual) MODE = %0s, HGATP(Guest) mode : %0s, Virtual Page Size = %0s, Guest Page Size = %0s ",vsatp_m,hgatp_m, init_page_size, guest_page_size);
 
     casez(vsatp_m) 
-      BARE: $display("// VSATP in BARE mode, No translation Available");
-      SV48:begin
+      BAREM: $display("// VSATP in BAREM mode, No translation Available");
+      SV48M:begin
 		 
         //vsatp_ppn = vsatp_ppn & 'h3ffff_ffff_ffff;
 		// Guest Physical Address calculation for level 2 translation
@@ -273,17 +274,17 @@ class riscv_mmu_gen;
         GVA_3_VPN_1 = GVA_3[29:21];
         GVA_3_VPN_0 = GVA_3[20:12];
         GVA_3_OFFSET = GVA_3[11:0];
-        $display("// Vitual mode - SV48  //");
+        $display("// Vitual mode - SV48M  //");
         casez(hgatp_m)
-          	BARE:begin
-              $display("// HGATP in BARE mode, No translation Available");
-              `V_PTE_G_BARE(3,init_page_size,vsatp_m,inst_trans,0)
-              `V_PTE_G_BARE(2,init_page_size,vsatp_m,inst_trans,3)
-              `V_PTE_G_BARE(1,init_page_size,vsatp_m,inst_trans,2)
-              `V_PTE_G_BARE(0,init_page_size,vsatp_m,inst_trans,1)
+          	BAREM:begin
+              $display("// HGATP in BAREM mode, No translation Available");
+              `V_PTE_G_BAREM(3,init_page_size,vsatp_m,inst_trans,0)
+              `V_PTE_G_BAREM(2,init_page_size,vsatp_m,inst_trans,3)
+              `V_PTE_G_BAREM(1,init_page_size,vsatp_m,inst_trans,2)
+              `V_PTE_G_BAREM(0,init_page_size,vsatp_m,inst_trans,1)
             end
-            SV48:begin
-              $display("// Guest mode - SV48  //");
+            SV48M:begin
+              $display("// Guest mode - SV48M  //");
 
         		hgatp_ppn = hgatp_ppn & 'hfff_ffff_fffc;
         		g_set_size = 30;
@@ -328,8 +329,8 @@ class riscv_mmu_gen;
 
 
             end
-      		SV39:begin
-              $display("// Guest mode - SV39  //");
+      		SV39M:begin
+              $display("// Guest mode - SV39M  //");
 
         		g_set_size = 30;
         		hgatp_ppn = hgatp_ppn & 'h1ff_ffff_fffc;
@@ -373,9 +374,9 @@ class riscv_mmu_gen;
         endcase
         end
  
-		SV39:begin        
+		SV39M:begin        
 			// Guest Physical Address calculation for level 2 translation
-            $display("// Vitual mode - SV39  //");
+            $display("// Vitual mode - SV39M  //");
 
           	GPA_PTE_ADDR_2 = (vsatp_ppn << 12) + (GVA_VPN_2 << 'h3);
           	GPA_PTE_ADDR_2 = {9'b0,GPA_PTE_ADDR_2[40:0]};
@@ -388,15 +389,15 @@ class riscv_mmu_gen;
            	GVA_2_OFFSET = GVA_2[11:0];
 
         	casez(hgatp_m)
-              BARE: begin
-                $display("// HGATP in BARE mode, No translation Available");
-              //`V_PTE_G_BARE(3,init_page_size,vsatp_m,inst_trans,0)
-                `V_PTE_G_BARE(2,init_page_size,vsatp_m,inst_trans,0)
-                `V_PTE_G_BARE(1,init_page_size,vsatp_m,inst_trans,2)
-                `V_PTE_G_BARE(0,init_page_size,vsatp_m,inst_trans,1)
+              BAREM: begin
+                $display("// HGATP in BAREM mode, No translation Available");
+              //`V_PTE_G_BAREM(3,init_page_size,vsatp_m,inst_trans,0)
+                `V_PTE_G_BAREM(2,init_page_size,vsatp_m,inst_trans,0)
+                `V_PTE_G_BAREM(1,init_page_size,vsatp_m,inst_trans,2)
+                `V_PTE_G_BAREM(0,init_page_size,vsatp_m,inst_trans,1)
               end
-          		SV48:begin
-                  $display("// Guest mode - SV48  //");
+          		SV48M:begin
+                  $display("// Guest mode - SV48M  //");
 
         			g_set_size = 30; 
                   	hgatp_ppn = hgatp_ppn & 'hfff_ffff_fffc;
@@ -431,8 +432,8 @@ class riscv_mmu_gen;
               					GPA_PTE_ADDR_0 = GVA_0;
                 
             	end
-      			SV39:begin
-                  $display("// Guest mode - SV39  //");
+      			SV39M:begin
+                  $display("// Guest mode - SV39M  //");
 					GVA_2 = GPA_PTE_ADDR_2;
                   `GVAX_VPNX__CALC(2,guest_page_size,hgatp_m)
                   
@@ -456,7 +457,7 @@ class riscv_mmu_gen;
                		`GX_PTE_2_cal(0,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,00)
                		`GX_PTE_1_cal(0,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,00)
                   	`GX_PTE_0_cal(0,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,00)
-                  	$display("// SV39 : SV39-G mode : GPA_3 = %0h,vsatp_ppm = %0h, hgatp_ppn = %0h",GPA_3, vsatp_ppn, hgatp_ppn);
+                  	$display("// SV39M : SV39M-G mode : GPA_3 = %0h,vsatp_ppm = %0h, hgatp_ppn = %0h",GPA_3, vsatp_ppn, hgatp_ppn);
 
                   `GVAX_VPNX__CALC(00,guest_page_size,hgatp_m)
 
@@ -476,7 +477,7 @@ class riscv_mmu_gen;
 
     endcase
     end
-    else if(satp_m != BARE)begin
+    else if(satp_m != BAREM)begin
       	set_size = 48;
     	gva = input_gva;
       	VPN_3 = gva[47:39]; 
@@ -486,14 +487,14 @@ class riscv_mmu_gen;
     	VPN_OFFSET = gva[11:0];
       	satp_ppn = satp[43:0];
     	casez(satp_m)
-      		BARE: $display("// SATP in BARE mode, No translation Available");
-      		SV48:begin
+      		BAREM: $display("// SATP in BAREM mode, No translation Available");
+      		SV48M:begin
 		 		`S_MODE_PTE_cal(pt_entry,sapt_ppn,guest_page_size,init_page_size,satp_m)
         		
-              	$display("// Vitual mode - SV48  //");
+              	$display("// Vitual mode - SV48M  //");
         	end
  
-	  		SV39:begin        
+	  		SV39M:begin        
 				// Guest Physical Address calculation for level 2 translation
             	`S_MODE_PTE_cal(pt_entry,sapt_ppn,guest_page_size,init_page_size,satp_m)
 
@@ -519,7 +520,7 @@ class riscv_mmu_gen;
     $display("PTE_0 = 0x%0h",PTE_0);*/
      
     //Guest PTE_ADDR and PTE calc
-    if(hgatp_m!=BARE)begin
+    if(hgatp_m!=BAREM)begin
     $display("\n\tG_PTE3 calculation");
 
     $display("GVA_3 = 0x%0h",GVA_3);
@@ -636,8 +637,8 @@ class riscv_mmu_gen;
     // Normal PTE_ADDR and PTE calc      
     //Guest PTE_ADDR and PTE calc
     // Level G3
-    if(vsatp_m inside {SV48,SV39})begin
-      if(vsatp_m == SV48)begin
+    if(vsatp_m inside {SV48M,SV39M})begin
+      if(vsatp_m == SV48M)begin
         $display("li x5, 0x%0h  //G3_PTE_ADDR_3",G3_PTE_ADDR_3);
         $display("li x6, 0x%0h	//G3_PTE_3",G3_PTE_3);
         $display("sd x6, (x5)");
@@ -665,7 +666,7 @@ class riscv_mmu_gen;
       // Level G2
       if(guest_page_size inside {P512GB,P1GB,P2MB,P4KB})begin
 
-      if(vsatp_m == SV48)begin
+      if(vsatp_m == SV48M)begin
         $display("li x5, 0x%0h	//G2_PTE_ADDR_3",G2_PTE_ADDR_3);
         $display("li x6, 0x%0h	//G2_PTE_3",G2_PTE_3);
         $display("sd x6, (x5)");
@@ -692,7 +693,7 @@ class riscv_mmu_gen;
       
         //level G1
       if(guest_page_size inside {P1GB,P2MB,P4KB})begin
-   	  if(vsatp_m == SV48)begin
+   	  if(vsatp_m == SV48M)begin
         $display("li x5, 0x%0h	//G1_PTE_ADDR_3",G1_PTE_ADDR_3);
         $display("li x6, 0x%0h	//G1_PTE_3",G1_PTE_3);
         $display("sd x6, (x5)");
@@ -719,7 +720,7 @@ class riscv_mmu_gen;
       
       //level G0
       if(guest_page_size inside {P2MB,P4KB})begin
-      if(vsatp_m == SV48)begin
+      if(vsatp_m == SV48M)begin
         $display("li x5, 0x%0h	//G0_PTE_ADDR_3",G0_PTE_ADDR_3);
         $display("li x6, 0x%0h	//G0_PTE_3",G0_PTE_3);
         $display("sd x6, (x5)");
@@ -747,7 +748,7 @@ class riscv_mmu_gen;
       
       //level G00
       if(guest_page_size==P4KB)begin
-      if(vsatp_m == SV48)begin
+      if(vsatp_m == SV48M)begin
         $display("li x5, 0x%0h	//G00_PTE_ADDR_3",G00_PTE_ADDR_3);
         $display("li x6, 0x%0h	//G00_PTE_3",G00_PTE_3);
         $display("sd x6, (x5)");
@@ -794,7 +795,7 @@ class riscv_mmu_gen;
       $display("\nPA = 0x%0h",PA);
       $display("PTE = 0x%0h\n",PTE);
       $display("************************************************************************************/");
-      if(satp_m == SV48)begin
+      if(satp_m == SV48M)begin
       $display("li x5, 0x%0h	//PTE_ADDR_3",PTE_ADDR_3);
       $display("li x6, 0x%0h	//PTE_3",PTE_3);
       $display("sd x6, (x5)");
@@ -820,9 +821,9 @@ class riscv_mmu_gen;
    			 
 
       
-      endtask
+      endfunction
   
-  task gen_guest_page_fault();
+  function void gen_guest_page_fault();
 	// 512GB fault
     
     $display("////BEFORE//// \nli x6, 0x%0h",G3_PTE_0);
@@ -833,8 +834,8 @@ class riscv_mmu_gen;
     
     case(guest_page_size)
       P512GB:begin
-        if(vsatp_m == SV48)begin
-          if(hgatp_m==SV48)begin
+        if(vsatp_m == SV48M)begin
+          if(hgatp_m==SV48M)begin
       	    `GX_PTE_3_gen_fault(3,3,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
     	  end
       	`GX_PTE_3_gen_fault(2,3,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -843,8 +844,8 @@ class riscv_mmu_gen;
       	`G00_PTE_3_gen_fault(00,3,hgatp_ppn,guest_page_size,init_page_size,vsa0p_m,hgatp_m)
           
         end
-      	if(vsatp_m == SV39)begin
-          if(hgatp_m==SV48)begin
+      	if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_3_gen_fault(2,3,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
       `GX_PTE_3_gen_fault(1,3,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -855,8 +856,8 @@ class riscv_mmu_gen;
       end
       P1GB:
         begin
-        if(vsatp_m == SV48)begin
-          if(hgatp_m==SV48)begin
+        if(vsatp_m == SV48M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_2_gen_fault(3,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
     	  end
       		`GX_PTE_2_gen_fault(2,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -866,8 +867,8 @@ class riscv_mmu_gen;
           
         end
 
-		if(vsatp_m == SV39)begin
-          if(hgatp_m==SV48)begin
+		if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_2_gen_fault(2,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
            `GX_PTE_2_gen_fault(1,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -875,8 +876,8 @@ class riscv_mmu_gen;
            `G00_PTE_2_gen_fault(00,2,hgatp_ppn,guest_page_size,init_page_size,vsa0p_m,hgatp_m)
           
         end
-      	if(vsatp_m == SV39)begin
-          if(hgatp_m==SV39)begin
+      	if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV39M)begin
             `GX_PTE_2_gen_fault(2,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
           `GX_PTE_2_gen_fault(1,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -885,8 +886,8 @@ class riscv_mmu_gen;
         end
         end
       P2MB:begin
-         if(vsatp_m == SV48)begin
-          if(hgatp_m==SV48)begin
+         if(vsatp_m == SV48M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_1_gen_fault(3,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
     	  end
            `GX_PTE_1_gen_fault(2,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -896,16 +897,16 @@ class riscv_mmu_gen;
            
         end
 
-		if(vsatp_m == SV39)begin
-          if(hgatp_m==SV48)begin
+		if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_2_gen_fault(2,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
           `GX_PTE_1_gen_fault(1,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           `GX_PTE_1_gen_fault(0,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           `G00_PTE_1_gen_fault(00,1,hgatp_ppn,guest_page_size,init_page_size,vsa0p_m,hgatp_m)
         end
-      	if(vsatp_m == SV39)begin
-          if(hgatp_m==SV39)begin
+      	if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV39M)begin
             `GX_PTE_1_gen_fault(2,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
           `GX_PTE_1_gen_fault(1,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -915,8 +916,8 @@ class riscv_mmu_gen;
         end
       end
       P4KB:begin
-        if(vsatp_m == SV48)begin
-          if(hgatp_m==SV48)begin
+        if(vsatp_m == SV48M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_0_gen_fault(3,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
     	  end
           `GX_PTE_0_gen_fault(2,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -926,8 +927,8 @@ class riscv_mmu_gen;
           
         end
 
-		if(vsatp_m == SV39)begin
-          if(hgatp_m==SV48)begin
+		if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV48M)begin
             `GX_PTE_0_gen_fault(3,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
           `GX_PTE_0_gen_fault(2,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -936,8 +937,8 @@ class riscv_mmu_gen;
           `G00_PTE_0_gen_fault(00,0,hgatp_ppn,guest_page_size,init_page_size,vsa0p_m,hgatp_m)
           
         end
-      	if(vsatp_m == SV39)begin
-          if(hgatp_m==SV39)begin
+      	if(vsatp_m == SV39M)begin
+          if(hgatp_m==SV39M)begin
             `GX_PTE_0_gen_fault(2,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
           end
           `GX_PTE_0_gen_fault(1,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)
@@ -955,17 +956,17 @@ class riscv_mmu_gen;
     $display("li x6, 0x%0h",G00_PTE_0);
 
    
-  endtask
-task gen_page_fault();
+  endfunction
+function void gen_page_fault();
   case(init_page_size)
   P512GB:begin
-    if(vsatp_m == SV48)begin
+    if(vsatp_m == SV48M)begin
       `PTE_3_gen_fault(3,init_page_size,vsatp_m)
       `PTE_3_gen_fault(2,init_page_size,vsatp_m)
       `PTE_3_gen_fault(1,init_page_size,vsatp_m)
       `PTE_3_gen_fault(0,init_page_size,vsatp_m)
     end
-    if(vsatp_m == SV39)begin
+    if(vsatp_m == SV39M)begin
       `PTE_3_gen_fault(2,init_page_size,vsatp_m)
       `PTE_3_gen_fault(1,init_page_size,vsatp_m)
       `PTE_3_gen_fault(0,init_page_size,vsatp_m)
@@ -973,39 +974,39 @@ task gen_page_fault();
   end
 
       P1GB:begin
-        if(vsatp_m == SV48)begin
+        if(vsatp_m == SV48M)begin
           `PTE_2_gen_fault(3,init_page_size,vsatp_m)
           `PTE_2_gen_fault(2,init_page_size,vsatp_m)
           `PTE_2_gen_fault(1,init_page_size,vsatp_m)
           `PTE_2_gen_fault(0,init_page_size,vsatp_m)
         end
-        if(vsatp_m == SV39)begin
+        if(vsatp_m == SV39M)begin
           `PTE_2_gen_fault(2,init_page_size,vsatp_m)
           `PTE_2_gen_fault(1,init_page_size,vsatp_m)
           `PTE_2_gen_fault(0,init_page_size,vsatp_m)
         end
       end
   P2MB:begin
-    if(vsatp_m == SV48)begin
+    if(vsatp_m == SV48M)begin
       `PTE_1_gen_fault(3,init_page_size,vsatp_m)
       `PTE_1_gen_fault(2,init_page_size,vsatp_m)
       `PTE_1_gen_fault(1,init_page_size,vsatp_m)
       `PTE_1_gen_fault(0,init_page_size,vsatp_m)
     end
-    if(vsatp_m == SV39)begin
+    if(vsatp_m == SV39M)begin
       `PTE_1_gen_fault(2,init_page_size,vsatp_m)
       `PTE_1_gen_fault(1,init_page_size,vsatp_m)
       `PTE_1_gen_fault(0,init_page_size,vsatp_m)
     end
   end
   P4KB:begin
-    if(vsatp_m == SV48)begin
+    if(vsatp_m == SV48M)begin
       `PTE_0_gen_fault(3,init_page_size,vsatp_m)
       `PTE_0_gen_fault(2,init_page_size,vsatp_m)
       `PTE_0_gen_fault(1,init_page_size,vsatp_m)
       `PTE_0_gen_fault(0,init_page_size,vsatp_m)
         end
-        if(vsatp_m == SV39)begin
+        if(vsatp_m == SV39M)begin
           `PTE_0_gen_fault(2,init_page_size,vsatp_m)
           `PTE_0_gen_fault(1,init_page_size,vsatp_m)
           `PTE_0_gen_fault(0,init_page_size,vsatp_m)
@@ -1025,6 +1026,6 @@ task gen_page_fault();
   $display("li x6, 0x%0h",PTE_0);
   $display("li x7, 0x%0h",PA_0);
   $display("sd x6, (x7)");
-  endtask
+  endfunction
 
 endclass

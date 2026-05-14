@@ -31,7 +31,7 @@ G``guest_level``_PTE_``pt_entry`` = (((G``guest_level``_PTE_ADDR_``pt_entry`` >>
 
 // Guest level 3 PTE 2 calculation
 `define GX_PTE_2_cal(guest_level,pt_entry,hgapt_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,nxt)												\
-if(hgatp_m == SV48)	\
+if(hgatp_m == SV48M)	\
   G``guest_level``_PTE_ADDR_``pt_entry`` = ((G``guest_level``_PTE_3 >>10) << 12) + (GVA_``guest_level``_VPN_``pt_entry`` << 'h3);					\
 else	\
   G``guest_level``_PTE_ADDR_``pt_entry`` = (hgatp_ppn[43:2] << 14) + (GVA_``guest_level``_VPN_``pt_entry`` << 'h3);									\
@@ -75,7 +75,7 @@ if(guest_page_size != P1GB)																															\
 if(guest_page_size == P512GB)begin																													\
   G``guest_level``_PTE_``pt_entry`` = (((G``guest_level``_PTE_ADDR_``pt_entry`` >> (9*(guest_page_size) + 12) + 1) << (9*(guest_page_size) + 10))) + 'h1;																\
 end																																					\
-if((guest_page_size == P1GB) && (hgatp_m == SV48) && (guest_level==2))																				\
+if((guest_page_size == P1GB) && (hgatp_m == SV48M) && (guest_level==2))																				\
     G``guest_level``_PTE_``pt_entry`` = 'hDF;																										\
 if(guest_page_size == P2MB && (pt_entry==1))begin          																							\
   G``guest_level``_PTE_``pt_entry`` = (((G``guest_level``_PTE_ADDR_``pt_entry`` >> (9*(guest_page_size) + 12)) + 1) << (9*(guest_page_size) + 10)) + 'hdf;								\
@@ -122,7 +122,7 @@ GVA_00 = ((PTE_0[53:0] >> 10) <<12) + (GVA_VPN_0<<3);																								\
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
 `define G00_PTE_3_cal(guest_level,pt_entry,hgapt_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m) 												\
-if(hgatp_m == SV48)																																	\
+if(hgatp_m == SV48M)																																	\
   G``guest_level``_PTE_ADDR_``pt_entry`` = (hgapt_ppn[43:2]<<14) + (GVA_``guest_level``_VPN_``pt_entry``<< 3);										\
 else																																				\
   G``guest_level``_PTE_ADDR_``pt_entry`` = ((G``guest_level``_PTE_3 >>10) << 12) + (GVA_``guest_level``_VPN_``pt_entry`` << 'h3);					\
@@ -142,7 +142,7 @@ if(guest_page_size == P512GB)begin																													\
               	
 // Guest level 3 PTE 2 calculation
 `define G00_PTE_2_cal(guest_level,pt_entry,hgapt_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m)												\
-if(hgatp_m == SV48)																																	\
+if(hgatp_m == SV48M)																																	\
   G``guest_level``_PTE_ADDR_``pt_entry`` = ((G``guest_level``_PTE_3 >>10) << 12) + (GVA_``guest_level``_VPN_``pt_entry`` << 'h3);					\
 else																																				\
   G``guest_level``_PTE_ADDR_``pt_entry`` = (hgatp_ppn << 12) + (GVA_``guest_level``_VPN_``pt_entry`` << 'h3);										\
@@ -191,11 +191,11 @@ end
   else G``guest_level``_PTE_``pt_entry`` = ((((G``guest_level``_PTE_ADDR_``pt_entry`` >> (9*(guest_page_size) + 12)) + 5) << (9*(guest_page_size) + 10))) + 'h1;																\
   SPA = ((G``guest_level``_PTE_``pt_entry`` >>10)<<12) + GVA_``guest_level``_OFFSET;																	
 
-`define V_PTE_G_BARE(pt_entry,init_page_size,vsatp_m,inst_trans,tmp)																				\
+`define V_PTE_G_BAREM(pt_entry,init_page_size,vsatp_m,inst_trans,tmp)																				\
 PTE_ADDR_``pt_entry`` = ((PTE_``tmp``>>10) << 12) + (GVA_VPN_``pt_entry`` << 'h3);																	\
-if(vsatp_m==SV48 && pt_entry==3)																													\
+if(vsatp_m==SV48M && pt_entry==3)																													\
 	PTE_ADDR_``pt_entry`` = (vsatp_ppn << 12) + (GVA_VPN_``pt_entry`` << 'h3);																	\
-if(vsatp_m==SV39 && pt_entry==2)																													\
+if(vsatp_m==SV39M && pt_entry==2)																													\
 	PTE_ADDR_``pt_entry`` = (vsatp_ppn << 12) + (GVA_VPN_``pt_entry`` << 'h3);																	\
 PTE_``pt_entry`` = (((PTE_ADDR_``pt_entry`` >> (9*(init_page_size) + 12)) + ``pt_entry``) << (9*(init_page_size) + 10)) + 1;							\
 $display("// PTE_ADDR_%0d = %0h, PTE_%0d = %0h, GVA_VPN_%0d = %0h",``pt_entry``,PTE_ADDR_``pt_entry``,``pt_entry``,PTE_``pt_entry``,``pt_entry``,GVA_VPN_``pt_entry``);																\
@@ -211,15 +211,15 @@ PA = ((PTE_``pt_entry``>> 10) << 12) + GVA_VPN_OFFSET ;
 
 
 
-	/*if(init_page_size == P512GB && vsatp_m==SV48)																								\
+	/*if(init_page_size == P512GB && vsatp_m==SV48M)																								\
       	PTE_``guest_level`` += 'hdf;																												\
 	else 																																			\
 		PTE_``guest_level`` += 'h1;																													\
-	if(init_page_size == P1GB && vsatp_m==SV39)																									\
+	if(init_page_size == P1GB && vsatp_m==SV39M)																									\
       	PTE_``guest_level`` += 'hdf;																												\
-	if(init_page_size == P2MB && vsatp_m==SV48)																									\
+	if(init_page_size == P2MB && vsatp_m==SV48M)																									\
       	PTE_``guest_level`` += 'hdf;																												\
-	if(init_page_size == P4KB && vsatp_m==SV48)																									\
+	if(init_page_size == P4KB && vsatp_m==SV48M)																									\
       	PTE_``guest_level`` += 'hdf;																												\
 
 */
@@ -278,7 +278,7 @@ if(init_page_size == P4KB)																																										\
 
 
 `define PTE_CALC_CASE(init_page_size,vsatp_m,guest_level) \
-casez({init_page_size == P512GB,init_page_size == P1GB,init_page_size == P2MB,init_page_size == P4KB,vsatp_m==SV48,vsatp_m==SV39,``guest_level``==3,``guest_level``==2,``guest_level``==1,``guest_level``==0})									    		\
+casez({init_page_size == P512GB,init_page_size == P1GB,init_page_size == P2MB,init_page_size == P4KB,vsatp_m==SV48M,vsatp_m==SV39M,``guest_level``==3,``guest_level``==2,``guest_level``==1,``guest_level``==0})									    		\
   10'b1000_10_1000 : PTE_``guest_level`` = {PTE_``guest_level``[63:8], (is_sup ? (is_user ? 8'hdf : 8'hcf) : (is_user ? 8'hdf : 8'h0))} ;					\
   10'b0100_10_0100 : PTE_``guest_level`` = {PTE_``guest_level``[63:8], (is_sup ? (is_user ? 8'hdf : 8'hcf) : (is_user ? 8'hdf : 8'h0))} ;					\
   10'b0010_10_0010 : PTE_``guest_level`` = {PTE_``guest_level``[63:8], (is_sup ? (is_user ? 8'hdf : 8'hcf) : (is_user ? 8'hdf : 8'h0))} ;					\
@@ -291,9 +291,9 @@ default : PTE_``guest_level`` = {PTE_``guest_level``[63:8], 8'h1};														
 
 `define GVAX_VPNX__CALC(guest_level,guest_page_size,hgatp_m)			\
 GVA_``guest_level``_VPN_3 = GVA_``guest_level``[49:39]; 				\
-if(hgatp_m==SV48)														\
+if(hgatp_m==SV48M)														\
   GVA_``guest_level``_VPN_2 = GVA_``guest_level``[38:30]; 				\
-else if(hgatp_m==SV39)													\
+else if(hgatp_m==SV39M)													\
   GVA_``guest_level``_VPN_2 = GVA_``guest_level``[40:30]; 				\
 GVA_``guest_level``_VPN_1 = GVA_``guest_level``[29:21]; 				\
 GVA_``guest_level``_VPN_0 = GVA_``guest_level``[20:12];					\
@@ -311,13 +311,13 @@ else if(guest_page_size==P512GB)										\
 //(((PTE_ADDR_2 >> (9*(init_page_size) + 12)) + 3) << (9*(init_page_size) + 10)) + 'h1
 
 `define S_MODE_PTE_cal(pt_entry,sapt_ppn,guest_page_size,init_page_size,satp_m) 												\
-if(satp_m==SV48)																												\
+if(satp_m==SV48M)																												\
 PTE_ADDR_3 = (satp_ppn << 12) + (VPN_3 << 'h3);																					\
 PTE_3 = inst_trans ? ((init_page_size==P512GB) ? (is_sup? 'hcf : (is_user ? 8'hdf : 0)) : (((PTE_ADDR_3 >> (9*(init_page_size) + 12)) + 3) << (9*(init_page_size) + 10)) + 1 ) :				\
 data_trans ? (((PTE_ADDR_3 >> (9*(init_page_size) + 12)) + 3) << (9*(init_page_size) + 10)) + ((init_page_size==P512GB) ? (is_sup? 'hcf : (is_user ? 'hdf : 0)) : (((PTE_ADDR_0 >> (9*(init_page_size) + 12))) << (9*(init_page_size) + 10)) + 1 ) :	\
 		0;							\
 																																\
-if(satp_m==SV39)																												\
+if(satp_m==SV39M)																												\
 PTE_ADDR_2 = (satp_ppn << 12) + (VPN_2 << 'h3);																					\
 																																\
 PTE_ADDR_2 = ((PTE_3 >> 10) << 12) + (VPN_3 << 'h3);																			\

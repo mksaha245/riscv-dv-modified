@@ -1896,6 +1896,8 @@ package riscv_instr_pkg;
   `include "riscv_privileged_common_seq.sv"
   `include "riscv_callstack_gen.sv"
   `include "riscv_data_page_gen.sv"
+  `include "mmu_unit_tb/riscv_mmu_defines.svh"
+  `include "mmu_unit_tb/riscv_mmu_gen.sv"
 
   `include "riscv_instr_stream.sv"
   `include "riscv_loop_instr.sv"

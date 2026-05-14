@@ -49,7 +49,7 @@ class riscv_asm_program_gen extends uvm_object;
    int unsigned                        directed_instr_stream_ratio[string];
    riscv_page_table_list#(SATP_MODE)   page_table_list;
    int                                 hart;
-
+   riscv_mmu_gen mmu_main;
   `uvm_object_utils(riscv_asm_program_gen)
 
   function new (string name = "");
@@ -62,12 +62,13 @@ class riscv_asm_program_gen extends uvm_object;
 
   // This is the main function to generate all sections of the program.
   virtual function void gen_program();
+    instr_stream.delete();
+    mmu_main.mmu_gen(instr_stream); 
     // Prevent generation of PMP exception handling code where PMP is not supported
     if (!support_pmp) begin
       cfg.pmp_cfg.enable_pmp_exception_handler = 1'b0;
     end
 
-    instr_stream.delete();
     // Generate program header
     gen_program_header();
     for (int hart = 0; hart < cfg.num_of_harts; hart++) begin
