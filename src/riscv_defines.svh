@@ -138,3 +138,25 @@
   class riscv_``instr_n``_instr extends riscv_zbs_instr; \
     `INSTR_BODY(instr_n, instr_format, instr_category, instr_group, imm_tp)
 
+typedef enum bit [3:0] {
+  	BAREM ='h0,
+    	SV32M ='h7,
+  	SV39M ='h8,
+  	SV48M ='h9,
+  	SV57M ='ha
+}atp_mode;
+
+typedef enum bit [3:0] {
+  	P4KB,
+  	P2MB,
+    P1GB,
+  	P512GB
+}page_size_t;
+
+/*typedef enum bit [2:0] {
+	BAREM ='h0,
+  	SV39M ='h8,
+  	SV48M ='h9,
+  	SV57M ='ha
+}hgatp_mode;
+*/

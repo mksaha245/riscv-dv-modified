@@ -2,38 +2,11 @@
 // Code your testbench here
 // or browse Examples
 
-/*typedef enum bit [4:0] {
-    ZERO = 5'b00000,
-    RA, SP, GP, TP, T0, T1, T2, S0, S1, A0, A1, A2, A3, A4, A5, A6, A7,
-    S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, T3, T4, T5, T6
-  } riscv_reg_t;
-*/
-typedef enum bit [3:0] {
-  	BAREM ='h0,
-    SV32M ='h7,
-  	SV39M ='h8,
-  	SV48M ='h9,
-  	SV57M ='ha
-}atp_mode;
 
-typedef enum bit [3:0] {
-  	P4KB,
-  	P2MB,
-    P1GB,
-  	P512GB
-}page_size_t;
-
-/*typedef enum bit [2:0] {
-	BAREM ='h0,
-  	SV39M ='h8,
-  	SV48M ='h9,
-  	SV57M ='ha
-}hgatp_mode;
-*/
-
-class riscv_mmu_gen;
-  `define PC_GVA 'h0
-  `define DATA_GVA 'h8229989199a
+class riscv_mmu_gen extends uvm_object;
+riscv_instr_gen_config cfg;
+  `define PC_GVA cfg.PC_GVA
+  `define DATA_GVA cfg.DATA_GVA 
   `define VSATP_PPN 'h81010101010
   riscv_instr        mmu_instr[$];
   
@@ -46,11 +19,10 @@ class riscv_mmu_gen;
   atp_mode hgatp_m = BAREM;
   atp_mode vsatp_m = BAREM;
   atp_mode satp_m = SV48M;
-  //vsatp_mode = vsatp[39:60]
-  //hgatp_mode = hgatp[63:60]
   riscv_reg_t rd,rd_reg;
   string str[$];
-  bit[63:0] satp,vsatp,hgatp,v_mode_on=0;
+  bit [63:0] satp,vsatp,hgatp,v_mode_on=0;
+  longint unsigned real_satp;
   logic[49:0] GPA_3,GPA_2, GPA_1,GPA_0,set_size,g_set_size,tmp;
   logic [63:0] satp_ppn,vsatp_ppn,hgatp_ppn;
   logic [9:0] num_pages,nxt;
@@ -82,21 +54,42 @@ class riscv_mmu_gen;
   logic[39:0] GVA_3_OFFSET,GVA_2_OFFSET,GVA_1_OFFSET,GVA_0_OFFSET,GVA_00_OFFSET;
   logic[63:0] PTE_ADDR_3,PTE_ADDR_2,PTE_ADDR_1,PTE_ADDR_0,PA,PTE;
   logic[11:0] GVA_VPN_OFFSET;
-  function void mmu_gen(string instr_st[$]);
+  
+  `uvm_object_utils(riscv_mmu_gen)
+  
+  function new (string name = "");
+    super.new(name);
+  endfunction
+
+  function void mmu_gen(ref string instr_st[$],riscv_instr_gen_config cfg);
+    enable_g_load_page_fault = cfg.enable_g_load_page_fault;
+    enable_g_store_page_fault = enable_g_store_page_fault;
+    enable_g_inst_access_page_fault = enable_g_inst_access_page_fault;
+    stage_2_g_fault = cfg.stage_2_g_fault;
+    enable_load_page_fault = cfg.enable_load_page_fault;
+    enable_store_page_fault = cfg.enable_store_page_fault;
+    enable_inst_access_page_fault = cfg.enable_inst_access_page_fault;
+    stage_1_fault = cfg.stage_1_fault;
+    num_g_load_page_fault = cfg.num_g_load_page_fault;
+    num_g_store_page_fault = cfg.num_g_store_page_fault;
+    num_g_inst_access_page_fault = cfg.num_g_inst_access_page_fault;
+
     instr_st.push_back($sformatf("I'm inside mmu gen"));
-  //initial begin
-    en_hv_inst=0;
-    is_sup = 1;
-    is_user = 0;
-    inst_trans = 1;
-    data_trans = 0;
-    is_virtualization_on=0;
-	satp = 'h0000100267070711;
-	vsatp = 'h0000100199999911;
-    hgatp = 'h00001001010810a4;
-    satp[63:60] = satp_m;
-    vsatp[63:60] = vsatp_m;
-    hgatp[63:60] = hgatp_m;
+    en_hv_inst = cfg.en_hv_inst;
+    is_sup = cfg.is_sup ;
+    is_user = cfg.is_user;
+    inst_trans = cfg.inst_trans;
+    data_trans = cfg.data_trans;
+    is_virtualization_on = cfg.is_virtualization_on;
+    hgatp_m = cfg.hgatp_m[0];   
+    vsatp_m = cfg.vsatp_m[0];
+    satp_m =  cfg.satp_m[0]; 
+    // Setting *atp, Todo: pass inline argument
+    `uvm_info(get_full_name(), $sformatf(
+                "out satp value is - %016h", cfg.satp), UVM_NONE)
+    satp =  {satp_m,$unsigned(cfg.satp[59:0])};
+    vsatp = {vsatp_m,cfg.vsatp[59:0]};
+    hgatp = {hgatp_m,cfg.hgatp[59:0]};
     
     satp_ppn = satp[43:0];
     satp_ppn = (satp_ppn <<2)>>2; //vsatp_ppn[43:42] = 'h0
@@ -114,33 +107,21 @@ class riscv_mmu_gen;
     stage_2_g_fault = enable_g_load_page_fault | enable_g_store_page_fault | enable_g_inst_access_page_fault;
     stage_1_fault = enable_load_page_fault | enable_store_page_fault | enable_inst_access_page_fault;
     stage_1_fault=1;
-    str.push_back("pmp_perm_setup_tor:\n");
-    str.push_back($sformatf("\t li %0s, 0xF\n",rd.name()));
-    str.push_back($sformatf("\t csrw pmpcfg0, %0s \n",rd.name()));
-    str.push_back($sformatf("\t li %0s, 0xEFFFFFFFFF \n",rd.name()));
-    str.push_back($sformatf("\t csrw pmpaddr0, %0s \n",rd.name()));
+    //str.push_back($sformatf("pmp_perm_setup_tor:\n"));
+    //str.push_back($sformatf($sformatf("\t li %0s, 0xF\n",rd.name()));
+    //str.push_back($sformatf($sformatf("\t csrw pmpcfg0, %0s \n",rd.name())));
+    //str.push_back($sformatf($sformatf("\t li %0s, 0xEFFFFFFFFF \n",rd.name())));
+    //str.push_back($sformatf($sformatf("\t csrw pmpaddr0, %0s \n",rd.name())));
 	
     if(is_sup & is_user)
       $fatal("SUP and USER both can't be enabled at same time, look for is_sup and is_user signals");
     if(inst_trans & data_trans)
       $fatal("Address translation and Data translation both can't be enabled at same time, look for inst_trans and data_trans signals");
     
-    /*if(pc_trans & !data_trans)
-    	pc_pte_calculation();
-    else if(pc_trans & data_trans)
-    	pc_pte_calculation();
-    else if(!pc_trans & data_trans)
-      $fatal("ERROR : Data Translation is possible without Inst Translation, pleae switch on pc_trans variable");*/
-	if(satp[(9*(init_page_size))+:9]==0)begin
+    if(satp[(9*(init_page_size))+:9]==0)begin
       $fatal("ERROR : satp_ppn[%0d:%0d] can't be 0 for %0s page translation, please provide value >> 0,satp_ppn = %0b",(9*(init_page_size+1)),(9*init_page_size),init_page_size,satp[(9*(init_page_size+1))+:9]);
     end
     
-    if(vsatp[(9*(init_page_size))+:9]==0)begin
-      $fatal("ERROR : vsatp_ppn[%0d:%0d] can't be 0 for %0s page translation, please provide value >> 0,vsatp_ppn = %0b",(9*(init_page_size+1)),(9*init_page_size),init_page_size,vsatp[(9*(init_page_size+1))+:9]);
-    end
-    if(hgatp[(9*(guest_page_size))+:9]==0)begin
-      $fatal("ERROR : hgatp[%0d:%0d] can't be 0 for %0s page translation, please provide value >> 0,hgatp_ppn = %0b",(9*(guest_page_size+1))+12,(9*guest_page_size)+12,guest_page_size,hgatp[(9*(guest_page_size+1))+12+:9]);
-    end
     
     if(vsatp_m==SV39M)
       assert(vsatp[36:27]==0);
@@ -151,40 +132,53 @@ class riscv_mmu_gen;
     if((vsatp_m!=SV48M & satp_m!=SV48M) && (init_page_size==P512GB))
       $fatal("Can Generate 512gb page in SV39M is less satp mode");
     
-    $display("\n\n#define PC_GVA 0x%0h",`PC_GVA);
-    $display("#define DATA_GVA 0x%0h\n\n",`DATA_GVA);
-    pmp_setup();
-    mstatus_setup();
-    pte_calculation(`PC_GVA);
+    instr_st.push_back($sformatf("\n\n#define PC_GVA 0x%0h",`PC_GVA));
+    instr_st.push_back($sformatf("#define DATA_GVA 0x%0h\n\n",`DATA_GVA));
+    pmp_setup(instr_st);
+    mstatus_setup(instr_st);
+    pte_calculation(`PC_GVA,instr_st);
     inst_trans = 0;
     data_trans = 1;
-    pte_calculation(`DATA_GVA);
-    		 $display("atp_setup:");
-    		 $display("li x9, 0x%0h",satp);
-             $display("li x10, 0x%0h",vsatp);
-             $display("li x11, 0x%0h",hgatp);
-    	     $display("csrw satp,x9"); 
-             $display("csrw vsatp,x10"); 
-    		 $display("csrw hgatp,x11");
-             $display("la x10, main");
-             $display("csrw mepc,x10");
-             $display("mret");
-    $display("main:					\
-    		 \n\tli x10, DATA_GVA	\
-             \n\tli x20, 0xDEADDEAD	\
-             \n\tli x21, 0xFADE		\
-             \n\tsd x20,(x10)		\
-             \n\tsd x20,8(x10)		\
-			 \n\tsh x21,8(x10)		\
-			 \n\tld x15,8(x10)		");
+    pte_calculation(`DATA_GVA,instr_st);
+    instr_st.push_back($sformatf("atp_setup:"));
+
+    if(is_virtualization_on || en_hv_inst)begin
+    	if(vsatp[(9*(init_page_size))+:9]==0)begin
+      		$fatal("ERROR : vsatp_ppn[%0d:%0d] can't be 0 for %0s page translation, please provide value >> 0,vsatp_ppn = %0b",(9*(init_page_size+1)),(9*init_page_size),init_page_size,vsatp[(9*(init_page_size+1))+:9]);
+    	end
+    	if(hgatp[(9*(guest_page_size))+:9]==0)begin
+    		$fatal("ERROR : hgatp[%0d:%0d] can't be 0 for %0s page translation, please provide value >> 0,hgatp_ppn = %0b",(9*(guest_page_size+1))+12,(9*guest_page_size)+12,guest_page_size,hgatp[(9*(guest_page_size+1))+12+:9]);
+    	end
+    instr_st.push_back($sformatf("li x10, 0x%0h",vsatp));
+    instr_st.push_back($sformatf("li x11, 0x%0h",hgatp));
+    instr_st.push_back($sformatf("csrw vsatp,x10")); 
+    instr_st.push_back($sformatf("csrw hgatp,x11"));
+    end
+    if(satp_m!=BAREM || !en_hv_inst)begin
+	instr_st.push_back($sformatf("li x9, 0x%0h",satp));
+	instr_st.push_back($sformatf("csrw satp,x9")); 
+    end
+    instr_st.push_back($sformatf("la x10, main"));
+    instr_st.push_back($sformatf("csrw mepc,x10"));
+    instr_st.push_back($sformatf("mret"));
+    instr_st.push_back($sformatf("main:	\
+    		\n\tli x10, DATA_GVA	\
+    	        \n\tli x20, 0xDEADDEAD	\
+        	\n\tli x21, 0xFADE	\
+             	\n\tsd x20,(x10)	\
+             	\n\tsd x20,8(x10)	\
+		\n\tsh x21,8(x10)	\
+		\n\tld x15,8(x10)		"));
     if(en_hv_inst)begin
-    	$display("\n\thsv.d x20,(x10)	\
+    	instr_st.push_back($sformatf("\n\thsv.d x20,(x10)	\
              \n\thlvx.wu x21,(x10)	\
              \n\tli x25,1<<48		\
 			 \n\txor x10,x10,x25	\
-			 \n\thlvx.wu x15,(x10)");
+			 \n\thlvx.wu x15,(x10)"));
     end
+  //return string'(instr_st);
   endfunction
+
     /*if(stage_2_g_fault)begin
       gen_guest_page_fault();
     end
@@ -192,52 +186,52 @@ class riscv_mmu_gen;
       gen_page_fault();
     end*/
 
-    function void pmp_setup();
-      $display("pmp_setup:");
-      $display("csrwi pmpcfg0,0xf");
-      $display("li x5,-1");
-      $display("csrw pmpaddr0,x5");
+    function void pmp_setup(ref string instr_st[$]);
+      instr_st.push_back($sformatf("pmp_setup:"));
+      instr_st.push_back($sformatf("csrwi pmpcfg0,0xf"));
+      instr_st.push_back($sformatf("li x5,-1"));
+      instr_st.push_back($sformatf("csrw pmpaddr0,x5"));
   endfunction
     
-  function void mstatus_setup();
+  function void mstatus_setup(ref string instr_st[$]);
     if(en_hv_inst)begin
-      	$display("mstatus_setup:");
-      $display("\tli x16, 0x80001EE00");
-      $display("\tcsrw 0x300, x16 # MSTATUS");
-      $display("\tcsrs mstatus,x30	// setting MPP=01(sup)");
-      $display("\tli x16,0x200000180");
-      $display("\tcsrw hstatus,x16");
+      	instr_st.push_back($sformatf("mstatus_setup:"));
+      instr_st.push_back($sformatf("\tli x16, 0x80001EE00"));
+      instr_st.push_back($sformatf("\tcsrw 0x300, x16 # MSTATUS"));
+      instr_st.push_back($sformatf("\tcsrs mstatus,x30	// setting MPP=01(sup)"));
+      instr_st.push_back($sformatf("\tli x16,0x200000180"));
+      instr_st.push_back($sformatf("\tcsrw hstatus,x16"));
     end
     else begin
-    $display("mstatus_setup:");  
-    $display("\tli x16, 0x80005EE00");  
-    $display("\tcsrw 0x300, x16 # MSTATUS");
+    instr_st.push_back($sformatf("mstatus_setup:"));  
+    instr_st.push_back($sformatf("\tli x16, 0x80005EE00"));  
+    instr_st.push_back($sformatf("\tcsrw 0x300, x16 # MSTATUS"));
     end
     if(is_sup)begin
-      $display("\tli x30,0x%0h",'b11<<11);
-      $display("\tcsrc mstatus,x30",);
-      $display("\tli x30,0x%0h",'b01<<11);
-      $display("\tcsrs mstatus,x30	// setting MPP=01(sup)");
+      instr_st.push_back($sformatf("\tli x30,0x%0h",'b11<<11));
+      instr_st.push_back($sformatf("\tcsrc mstatus,x30",));
+      instr_st.push_back($sformatf("\tli x30,0x%0h",'b01<<11));
+      instr_st.push_back($sformatf("\tcsrs mstatus,x30	// setting MPP=01(sup)"));
     end
     if(is_user)begin
-      $display("\tli x30,0x%0h",'b11<<11);
-      $display("\tcsrc mstatus,x30	// setting MPP=00(user)");
+      instr_st.push_back($sformatf("\tli x30,0x%0h",'b11<<11));
+      instr_st.push_back($sformatf("\tcsrc mstatus,x30	// setting MPP=00(user)"));
 
     end
     
     if(is_virtualization_on)begin
     	v_mode_on = (is_virtualization_on<<39);
-      $display("\tli x30,0x%0h",v_mode_on);
-      $display("\tcsrs mstatus,x30 	// setting MPRV = 1\n");
+      instr_st.push_back($sformatf("\tli x30,0x%0h",v_mode_on));
+      instr_st.push_back($sformatf("\tcsrs mstatus,x30 	// setting MPRV = 1\n"));
     end
     else begin
       v_mode_on = 'b1<<39;
-      $display("\tli x30,0x%0h",v_mode_on);
-      $display("\tcsrc mstatus,x30 	// setting MPRV = 0\n");
+      instr_st.push_back($sformatf("\tli x30,0x%0h",v_mode_on));
+      instr_st.push_back($sformatf("\tcsrc mstatus,x30 	// setting MPRV = 0\n"));
     end
   endfunction
     
-  function void pte_calculation(input[63:0] input_gva);
+  function void pte_calculation(input[63:0] input_gva, ref string instr_st[$]);
     
       
     set_size = 48;
@@ -257,14 +251,13 @@ class riscv_mmu_gen;
       GVA_3_OFFSET = GVA_3[38:0];
 
     if(vsatp_m!=BAREM)begin
-    $display("// VSATP(Virtual) MODE = %0s, HGATP(Guest) mode : %0s, Virtual Page Size = %0s, Guest Page Size = %0s ",vsatp_m,hgatp_m, init_page_size, guest_page_size);
+    instr_st.push_back($sformatf("// VSATP(Virtual) MODE = %0s, HGATP(Guest) mode : %0s, Virtual Page Size = %0s, Guest Page Size = %0s ",vsatp_m,hgatp_m, init_page_size, guest_page_size));
 
     casez(vsatp_m) 
-      BAREM: $display("// VSATP in BAREM mode, No translation Available");
+      BAREM: instr_st.push_back($sformatf("// VSATP in BAREM mode, No translation Available"));
       SV48M:begin
 		 
-        //vsatp_ppn = vsatp_ppn & 'h3ffff_ffff_ffff;
-		// Guest Physical Address calculation for level 2 translation
+	// Guest Physical Address calculation for level 2 translation
         GPA_PTE_ADDR_3 = (vsatp_ppn << 12) + (GVA_VPN_3 << 'h3);
         
         GPA_PTE_ADDR_3 = {6'b0,GPA_PTE_ADDR_3[49:0]};
@@ -274,17 +267,17 @@ class riscv_mmu_gen;
         GVA_3_VPN_1 = GVA_3[29:21];
         GVA_3_VPN_0 = GVA_3[20:12];
         GVA_3_OFFSET = GVA_3[11:0];
-        $display("// Vitual mode - SV48M  //");
+        instr_st.push_back($sformatf("// Vitual mode - SV48M  //"));
         casez(hgatp_m)
           	BAREM:begin
-              $display("// HGATP in BAREM mode, No translation Available");
+              instr_st.push_back($sformatf("// HGATP in BAREM mode, No translation Available"));
               `V_PTE_G_BAREM(3,init_page_size,vsatp_m,inst_trans,0)
               `V_PTE_G_BAREM(2,init_page_size,vsatp_m,inst_trans,3)
               `V_PTE_G_BAREM(1,init_page_size,vsatp_m,inst_trans,2)
               `V_PTE_G_BAREM(0,init_page_size,vsatp_m,inst_trans,1)
             end
             SV48M:begin
-              $display("// Guest mode - SV48M  //");
+              instr_st.push_back($sformatf("// Guest mode - SV48M  //"));
 
         		hgatp_ppn = hgatp_ppn & 'hfff_ffff_fffc;
         		g_set_size = 30;
@@ -330,7 +323,7 @@ class riscv_mmu_gen;
 
             end
       		SV39M:begin
-              $display("// Guest mode - SV39M  //");
+              instr_st.push_back($sformatf("// Guest mode - SV39M  //"));
 
         		g_set_size = 30;
         		hgatp_ppn = hgatp_ppn & 'h1ff_ffff_fffc;
@@ -341,7 +334,6 @@ class riscv_mmu_gen;
                `GVAX_VPNX__CALC(3,guest_page_size,hgatp_m)
 
               	// Guest level 3 PTE 3 calculation
-               //`GX_PTE_3_cal(3,3,hgatp_ppn,guest_page_size,init_page_size)
                `GX_PTE_2_cal(3,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,2)
                `GX_PTE_1_cal(3,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,2)
                `GX_PTE_0_cal(3,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,2)
@@ -376,7 +368,7 @@ class riscv_mmu_gen;
  
 		SV39M:begin        
 			// Guest Physical Address calculation for level 2 translation
-            $display("// Vitual mode - SV39M  //");
+            instr_st.push_back($sformatf("// Vitual mode - SV39M  //"));
 
           	GPA_PTE_ADDR_2 = (vsatp_ppn << 12) + (GVA_VPN_2 << 'h3);
           	GPA_PTE_ADDR_2 = {9'b0,GPA_PTE_ADDR_2[40:0]};
@@ -390,14 +382,14 @@ class riscv_mmu_gen;
 
         	casez(hgatp_m)
               BAREM: begin
-                $display("// HGATP in BAREM mode, No translation Available");
+                instr_st.push_back($sformatf("// HGATP in BAREM mode, No translation Available"));
               //`V_PTE_G_BAREM(3,init_page_size,vsatp_m,inst_trans,0)
                 `V_PTE_G_BAREM(2,init_page_size,vsatp_m,inst_trans,0)
                 `V_PTE_G_BAREM(1,init_page_size,vsatp_m,inst_trans,2)
                 `V_PTE_G_BAREM(0,init_page_size,vsatp_m,inst_trans,1)
               end
           		SV48M:begin
-                  $display("// Guest mode - SV48M  //");
+                  instr_st.push_back($sformatf("// Guest mode - SV48M  //"));
 
         			g_set_size = 30; 
                   	hgatp_ppn = hgatp_ppn & 'hfff_ffff_fffc;
@@ -433,7 +425,7 @@ class riscv_mmu_gen;
                 
             	end
       			SV39M:begin
-                  $display("// Guest mode - SV39M  //");
+                  instr_st.push_back($sformatf("// Guest mode - SV39M  //"));
 					GVA_2 = GPA_PTE_ADDR_2;
                   `GVAX_VPNX__CALC(2,guest_page_size,hgatp_m)
                   
@@ -457,7 +449,7 @@ class riscv_mmu_gen;
                		`GX_PTE_2_cal(0,2,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,00)
                		`GX_PTE_1_cal(0,1,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,00)
                   	`GX_PTE_0_cal(0,0,hgatp_ppn,guest_page_size,init_page_size,vsatp_m,hgatp_m,00)
-                  	$display("// SV39M : SV39M-G mode : GPA_3 = %0h,vsatp_ppm = %0h, hgatp_ppn = %0h",GPA_3, vsatp_ppn, hgatp_ppn);
+                  	instr_st.push_back($sformatf("// SV39M : SV39M-G mode : GPA_3 = %0h,vsatp_ppm = %0h, hgatp_ppn = %0h",GPA_3, vsatp_ppn, hgatp_ppn));
 
                   `GVAX_VPNX__CALC(00,guest_page_size,hgatp_m)
 
@@ -487,11 +479,11 @@ class riscv_mmu_gen;
     	VPN_OFFSET = gva[11:0];
       	satp_ppn = satp[43:0];
     	casez(satp_m)
-      		BAREM: $display("// SATP in BAREM mode, No translation Available");
+      		BAREM: instr_st.push_back($sformatf("// SATP in BAREM mode, No translation Available"));
       		SV48M:begin
 		 		`S_MODE_PTE_cal(pt_entry,sapt_ppn,guest_page_size,init_page_size,satp_m)
         		
-              	$display("// Vitual mode - SV48M  //");
+              	instr_st.push_back($sformatf("// Vitual mode - SV48M  //"));
         	end
  
 	  		SV39M:begin        
@@ -503,135 +495,135 @@ class riscv_mmu_gen;
     endcase
     end
     
-    $display("/************************************************************************************");
-    $display("csrw vsatp, 0x%0h",vsatp);
-    $display("csrw hgatp, 0x%0h",hgatp);
+    instr_st.push_back($sformatf("/************************************************************************************"));
+    instr_st.push_back($sformatf("csrw vsatp, 0x%0h",vsatp));
+    instr_st.push_back($sformatf("csrw hgatp, 0x%0h",hgatp));
         
-    /*$display("PA_3 = 0x%0h",PA_3);
-    $display("PTE_3 = 0x%0h",PTE_3);
+    /*instr_st.push_back($sformatf("PA_3 = 0x%0h",PA_3));
+    instr_st.push_back($sformatf("PTE_3 = 0x%0h",PTE_3));
     
-    $display("PA_2 = 0x%0h",PA_2);
-    $display("PTE_2 = 0x%0h",PTE_2);
+    instr_st.push_back($sformatf("PA_2 = 0x%0h",PA_2));
+    instr_st.push_back($sformatf("PTE_2 = 0x%0h",PTE_2));
     
-    $display("PA_1 = 0x%0h",PA_1);
-    $display("PTE_1 = 0x%0h",PTE_1);
+    instr_st.push_back($sformatf("PA_1 = 0x%0h",PA_1));
+    instr_st.push_back($sformatf("PTE_1 = 0x%0h",PTE_1));
     
-    $display("PA_0 = 0x%0h",PA_0);
-    $display("PTE_0 = 0x%0h",PTE_0);*/
+    instr_st.push_back($sformatf("PA_0 = 0x%0h",PA_0));
+    instr_st.push_back($sformatf("PTE_0 = 0x%0h",PTE_0));*/
      
     //Guest PTE_ADDR and PTE calc
     if(hgatp_m!=BAREM)begin
-    $display("\n\tG_PTE3 calculation");
+    instr_st.push_back($sformatf("\n\tG_PTE3 calculation"));
 
-    $display("GVA_3 = 0x%0h",GVA_3);
-    $display("GVA_3_VPN_3 <<3 = 0x%0h",GVA_3_VPN_3 <<3);
-    $display("GVA_3_VPN_2 <<3 = 0x%0h",GVA_3_VPN_2 <<3);
-    $display("GVA_3_VPN_1 <<3 = 0x%0h",GVA_3_VPN_1 <<3);
-    $display("GVA_3_VPN_0 <<3 = 0x%0h",GVA_3_VPN_0 <<3);
+    instr_st.push_back($sformatf("GVA_3 = 0x%0h",GVA_3));
+    instr_st.push_back($sformatf("GVA_3_VPN_3 <<3 = 0x%0h",GVA_3_VPN_3 <<3));
+    instr_st.push_back($sformatf("GVA_3_VPN_2 <<3 = 0x%0h",GVA_3_VPN_2 <<3));
+    instr_st.push_back($sformatf("GVA_3_VPN_1 <<3 = 0x%0h",GVA_3_VPN_1 <<3));
+    instr_st.push_back($sformatf("GVA_3_VPN_0 <<3 = 0x%0h",GVA_3_VPN_0 <<3));
     
-    $display("\nG3_PTE_ADDR_3 = 0x%0h",G3_PTE_ADDR_3);
-    $display("G3_PTE_3 = 0x%0h",G3_PTE_3);
+    instr_st.push_back($sformatf("\nG3_PTE_ADDR_3 = 0x%0h",G3_PTE_ADDR_3));
+    instr_st.push_back($sformatf("G3_PTE_3 = 0x%0h",G3_PTE_3));
     
-    $display("G3_PTE_ADDR_2 = 0x%0h",G3_PTE_ADDR_2);
-    $display("G3_PTE_2 = 0x%0h",G3_PTE_2);
+    instr_st.push_back($sformatf("G3_PTE_ADDR_2 = 0x%0h",G3_PTE_ADDR_2));
+    instr_st.push_back($sformatf("G3_PTE_2 = 0x%0h",G3_PTE_2));
     
-    $display("G3_PTE_ADDR_1 = 0x%0h",G3_PTE_ADDR_1);
-    $display("G3_PTE_1 = 0x%0h",G3_PTE_1);
+    instr_st.push_back($sformatf("G3_PTE_ADDR_1 = 0x%0h",G3_PTE_ADDR_1));
+    instr_st.push_back($sformatf("G3_PTE_1 = 0x%0h",G3_PTE_1));
     
-    $display("G3_PTE_ADDR_0 = 0x%0h",G3_PTE_ADDR_0);
-    $display("G3_PTE_0 = 0x%0h",G3_PTE_0);
+    instr_st.push_back($sformatf("G3_PTE_ADDR_0 = 0x%0h",G3_PTE_ADDR_0));
+    instr_st.push_back($sformatf("G3_PTE_0 = 0x%0h",G3_PTE_0));
     
-    $display("\nPA_3 = 0x%0h",PA_3);
-    $display("PTE_3 = 0x%0h\n",PTE_3);
+    instr_st.push_back($sformatf("\nPA_3 = 0x%0h",PA_3));
+    instr_st.push_back($sformatf("PTE_3 = 0x%0h\n",PTE_3));
     
     
-    $display("\n\tG_PTE2 calculation");
+    instr_st.push_back($sformatf("\n\tG_PTE2 calculation"));
     
-    $display("GVA_2 = 0x%0h",GVA_2);
-    $display("GVA_2_VPN_3 <<3 = 0x%0h",GVA_2_VPN_3 <<3);
-    $display("GVA_2_VPN_2 <<3 = 0x%0h",GVA_2_VPN_2 <<3);
-    $display("GVA_2_VPN_1 <<3 = 0x%0h",GVA_2_VPN_1 <<3);
-    $display("GVA_2_VPN_0 <<3 = 0x%0h",GVA_2_VPN_0 <<3);
+    instr_st.push_back($sformatf("GVA_2 = 0x%0h",GVA_2));
+    instr_st.push_back($sformatf("GVA_2_VPN_3 <<3 = 0x%0h",GVA_2_VPN_3 <<3));
+    instr_st.push_back($sformatf("GVA_2_VPN_2 <<3 = 0x%0h",GVA_2_VPN_2 <<3));
+    instr_st.push_back($sformatf("GVA_2_VPN_1 <<3 = 0x%0h",GVA_2_VPN_1 <<3));
+    instr_st.push_back($sformatf("GVA_2_VPN_0 <<3 = 0x%0h",GVA_2_VPN_0 <<3));
     
-    $display("\nG2_PTE_ADDR_3 0x%0h",G2_PTE_ADDR_3);
-    $display("G2_PTE_3 = 0x%0h",G2_PTE_3);
+    instr_st.push_back($sformatf("\nG2_PTE_ADDR_3 0x%0h",G2_PTE_ADDR_3));
+    instr_st.push_back($sformatf("G2_PTE_3 = 0x%0h",G2_PTE_3));
     
-    $display("G2_PTE_ADDR_2 = 0x%0h",G2_PTE_ADDR_2);
-    $display("G2_PTE_2 = 0x%0h",G2_PTE_2);
+    instr_st.push_back($sformatf("G2_PTE_ADDR_2 = 0x%0h",G2_PTE_ADDR_2));
+    instr_st.push_back($sformatf("G2_PTE_2 = 0x%0h",G2_PTE_2));
 
-    $display("G2_PTE_ADDR_1 = 0x%0h",G2_PTE_ADDR_1);
-    $display("G2_PTE_1 = 0x%0h",G2_PTE_1);
+    instr_st.push_back($sformatf("G2_PTE_ADDR_1 = 0x%0h",G2_PTE_ADDR_1));
+    instr_st.push_back($sformatf("G2_PTE_1 = 0x%0h",G2_PTE_1));
     
-    $display("G2_PTE_ADDR_0 = 0x%0h",G2_PTE_ADDR_0);
-    $display("G2_PTE_0 = 0x%0h",G2_PTE_0);
+    instr_st.push_back($sformatf("G2_PTE_ADDR_0 = 0x%0h",G2_PTE_ADDR_0));
+    instr_st.push_back($sformatf("G2_PTE_0 = 0x%0h",G2_PTE_0));
     
-    $display("\nPA_2 = 0x%0h",PA_2);
-    $display("PTE_2 = 0x%0h\n",PTE_2);
+    instr_st.push_back($sformatf("\nPA_2 = 0x%0h",PA_2));
+    instr_st.push_back($sformatf("PTE_2 = 0x%0h\n",PTE_2));
     
-    $display("\n\tG_PTE1 calculation");
-    $display("GVA_1 = 0x%0h",GVA_1);
-    $display("GVA_1_VPN_3 <<3 = 0x%0h",GVA_1_VPN_3 <<3);
-    $display("GVA_1_VPN_2 <<3 = 0x%0h",GVA_1_VPN_2 <<3);
-    $display("GVA_1_VPN_1 <<3 = 0x%0h",GVA_1_VPN_1 <<3);
-    $display("GVA_1_VPN_0 <<3 = 0x%0h",GVA_1_VPN_0 <<3);
+    instr_st.push_back($sformatf("\n\tG_PTE1 calculation"));
+    instr_st.push_back($sformatf("GVA_1 = 0x%0h",GVA_1));
+    instr_st.push_back($sformatf("GVA_1_VPN_3 <<3 = 0x%0h",GVA_1_VPN_3 <<3));
+    instr_st.push_back($sformatf("GVA_1_VPN_2 <<3 = 0x%0h",GVA_1_VPN_2 <<3));
+    instr_st.push_back($sformatf("GVA_1_VPN_1 <<3 = 0x%0h",GVA_1_VPN_1 <<3));
+    instr_st.push_back($sformatf("GVA_1_VPN_0 <<3 = 0x%0h",GVA_1_VPN_0 <<3));
 
-    $display("\nG1_PTE_ADDR_3 0x%0h",G1_PTE_ADDR_3);
-    $display("G1_PTE_3 0x%0h",G1_PTE_3);
+    instr_st.push_back($sformatf("\nG1_PTE_ADDR_3 0x%0h",G1_PTE_ADDR_3));
+    instr_st.push_back($sformatf("G1_PTE_3 0x%0h",G1_PTE_3));
     
-    $display("G1_PTE_ADDR_2 = 0x%0h",G1_PTE_ADDR_2);
-    $display("G1_PTE_2 = 0x%0h",G1_PTE_2);
+    instr_st.push_back($sformatf("G1_PTE_ADDR_2 = 0x%0h",G1_PTE_ADDR_2));
+    instr_st.push_back($sformatf("G1_PTE_2 = 0x%0h",G1_PTE_2));
     
-    $display("G1_PTE_ADDR_1 = 0x%0h",G1_PTE_ADDR_1);
-    $display("G1_PTE_1 = 0x%0h",G1_PTE_1);
+    instr_st.push_back($sformatf("G1_PTE_ADDR_1 = 0x%0h",G1_PTE_ADDR_1));
+    instr_st.push_back($sformatf("G1_PTE_1 = 0x%0h",G1_PTE_1));
     
-    $display("G1_PTE_ADDR_0 = 0x%0h",G1_PTE_ADDR_0);
-    $display("G1_PTE_0 = 0x%0h",G1_PTE_0);
+    instr_st.push_back($sformatf("G1_PTE_ADDR_0 = 0x%0h",G1_PTE_ADDR_0));
+    instr_st.push_back($sformatf("G1_PTE_0 = 0x%0h",G1_PTE_0));
     
-    $display("\nPA_1 = 0x%0h",PA_1);
-    $display("PTE_1 = 0x%0h\n",PTE_1);
+    instr_st.push_back($sformatf("\nPA_1 = 0x%0h",PA_1));
+    instr_st.push_back($sformatf("PTE_1 = 0x%0h\n",PTE_1));
     
-    $display("\n\tG_PTE0 calculation");
-    $display("GVA_0 = 0x%0h",GVA_0);
-    $display("GVA_0_VPN_3 <<3 = 0x%0h",GVA_0_VPN_3 <<3);
-    $display("GVA_0_VPN_2 <<3 = 0x%0h",GVA_0_VPN_2 <<3);
-    $display("GVA_0_VPN_1 <<3 = 0x%0h",GVA_0_VPN_1 <<3);
-    $display("GVA_0_VPN_0 <<3 = 0x%0h",GVA_0_VPN_0 <<3);
+    instr_st.push_back($sformatf("\n\tG_PTE0 calculation"));
+    instr_st.push_back($sformatf("GVA_0 = 0x%0h",GVA_0));
+    instr_st.push_back($sformatf("GVA_0_VPN_3 <<3 = 0x%0h",GVA_0_VPN_3 <<3));
+    instr_st.push_back($sformatf("GVA_0_VPN_2 <<3 = 0x%0h",GVA_0_VPN_2 <<3));
+    instr_st.push_back($sformatf("GVA_0_VPN_1 <<3 = 0x%0h",GVA_0_VPN_1 <<3));
+    instr_st.push_back($sformatf("GVA_0_VPN_0 <<3 = 0x%0h",GVA_0_VPN_0 <<3));
 
-    $display("\nG0_PTE_ADDR_3 = 0x%0h",G0_PTE_ADDR_3);
-    $display("G0_PTE_3 = 0x%0h",G0_PTE_3);
+    instr_st.push_back($sformatf("\nG0_PTE_ADDR_3 = 0x%0h",G0_PTE_ADDR_3));
+    instr_st.push_back($sformatf("G0_PTE_3 = 0x%0h",G0_PTE_3));
     
-    $display("G0_PTE_ADDR_2 = 0x%0h",G0_PTE_ADDR_2);
-    $display("G0_PTE_2 = 0x%0h",G0_PTE_2);
+    instr_st.push_back($sformatf("G0_PTE_ADDR_2 = 0x%0h",G0_PTE_ADDR_2));
+    instr_st.push_back($sformatf("G0_PTE_2 = 0x%0h",G0_PTE_2));
     
-    $display("G0_PTE_ADDR_1 = 0x%0h",G0_PTE_ADDR_1);
-    $display("G0_PTE_1 = 0x%0h",G0_PTE_1);
+    instr_st.push_back($sformatf("G0_PTE_ADDR_1 = 0x%0h",G0_PTE_ADDR_1));
+    instr_st.push_back($sformatf("G0_PTE_1 = 0x%0h",G0_PTE_1));
     
-    $display("G0_PTE_ADDR_0 = 0x%0h",G0_PTE_ADDR_0);
-    $display("G0_PTE_0 = 0x%0h",G0_PTE_0);
+    instr_st.push_back($sformatf("G0_PTE_ADDR_0 = 0x%0h",G0_PTE_ADDR_0));
+    instr_st.push_back($sformatf("G0_PTE_0 = 0x%0h",G0_PTE_0));
     
-    $display("\nPA_0 = 0x%0h",PA_0);
-    $display("PTE_0 = 0x%0h\n",PTE_0);
+    instr_st.push_back($sformatf("\nPA_0 = 0x%0h",PA_0));
+    instr_st.push_back($sformatf("PTE_0 = 0x%0h\n",PTE_0));
     
-    $display("GVA_00 = 0x%0h",GVA_00);
-    $display("GVA_00_VPN_3 <<3 = 0x%0h",GVA_00_VPN_3 <<3);
-    $display("GVA_00_VPN_2 <<3 = 0x%0h",GVA_00_VPN_2 <<3);
-    $display("GVA_00_VPN_1 <<3 = 0x%0h",GVA_00_VPN_1 <<3);
-    $display("GVA_00_VPN_0 <<3 = 0x%0h",GVA_00_VPN_0 <<3);
+    instr_st.push_back($sformatf("GVA_00 = 0x%0h",GVA_00));
+    instr_st.push_back($sformatf("GVA_00_VPN_3 <<3 = 0x%0h",GVA_00_VPN_3 <<3));
+    instr_st.push_back($sformatf("GVA_00_VPN_2 <<3 = 0x%0h",GVA_00_VPN_2 <<3));
+    instr_st.push_back($sformatf("GVA_00_VPN_1 <<3 = 0x%0h",GVA_00_VPN_1 <<3));
+    instr_st.push_back($sformatf("GVA_00_VPN_0 <<3 = 0x%0h",GVA_00_VPN_0 <<3));
 
-    $display("\nG00_PTE_ADDR_3 = 0x%0h",G00_PTE_ADDR_3);
-    $display("G00_PTE_3 = 0x%0h",G00_PTE_3);
+    instr_st.push_back($sformatf("\nG00_PTE_ADDR_3 = 0x%0h",G00_PTE_ADDR_3));
+    instr_st.push_back($sformatf("G00_PTE_3 = 0x%0h",G00_PTE_3));
     
-    $display("G00_PTE_ADDR_2 = 0x%0h",G00_PTE_ADDR_2);
-    $display("G00_PTE_2 = 0x%0h",G00_PTE_2);
+    instr_st.push_back($sformatf("G00_PTE_ADDR_2 = 0x%0h",G00_PTE_ADDR_2));
+    instr_st.push_back($sformatf("G00_PTE_2 = 0x%0h",G00_PTE_2));
     
-    $display("G00_PTE_ADDR_1 = 0x%0h",G00_PTE_ADDR_1);
-    $display("G00_PTE_1 = 0x%0h",G00_PTE_1);
+    instr_st.push_back($sformatf("G00_PTE_ADDR_1 = 0x%0h",G00_PTE_ADDR_1));
+    instr_st.push_back($sformatf("G00_PTE_1 = 0x%0h",G00_PTE_1));
     
-    $display("G00_PTE_ADDR_0 = 0x%0h",G00_PTE_ADDR_0);
-    $display("G00_PTE_0 = 0x%0h",G00_PTE_0);
+    instr_st.push_back($sformatf("G00_PTE_ADDR_0 = 0x%0h",G00_PTE_ADDR_0));
+    instr_st.push_back($sformatf("G00_PTE_0 = 0x%0h",G00_PTE_0));
     
-     $display("spa = 0x%0h",SPA);
-     $display("************************************************************************************/");
+     instr_st.push_back($sformatf("spa = 0x%0h",SPA));
+     instr_st.push_back($sformatf("************************************************************************************/"));
 
     
     // Normal PTE_ADDR and PTE calc      
@@ -639,180 +631,180 @@ class riscv_mmu_gen;
     // Level G3
     if(vsatp_m inside {SV48M,SV39M})begin
       if(vsatp_m == SV48M)begin
-        $display("li x5, 0x%0h  //G3_PTE_ADDR_3",G3_PTE_ADDR_3);
-        $display("li x6, 0x%0h	//G3_PTE_3",G3_PTE_3);
-        $display("sd x6, (x5)");
+        instr_st.push_back($sformatf("li x5, 0x%0h  //G3_PTE_ADDR_3",G3_PTE_ADDR_3));
+        instr_st.push_back($sformatf("li x6, 0x%0h	//G3_PTE_3",G3_PTE_3));
+        instr_st.push_back($sformatf("sd x6, (x5)"));
       end
       if(guest_page_size != P512GB)begin
-        $display("li x5, 0x%0h	//G3_PTE_ADDR_2",G3_PTE_ADDR_2);
-        $display("li x6, 0x%0h	//G3_PTE_2",G3_PTE_2);
-      	$display("sd x6, (x5)");
+        instr_st.push_back($sformatf("li x5, 0x%0h	//G3_PTE_ADDR_2",G3_PTE_ADDR_2));
+        instr_st.push_back($sformatf("li x6, 0x%0h	//G3_PTE_2",G3_PTE_2));
+      	instr_st.push_back($sformatf("sd x6, (x5)"));
       	if(guest_page_size != P1GB)begin
-        	$display("li x5, 0x%0h	//G3_PTE_ADDR_1",G3_PTE_ADDR_1);
-        	$display("li x6, 0x%0h	//G3_PTE_1",G3_PTE_1);
-        	$display("sd x6, (x5)");
+        	instr_st.push_back($sformatf("li x5, 0x%0h	//G3_PTE_ADDR_1",G3_PTE_ADDR_1));
+        	instr_st.push_back($sformatf("li x6, 0x%0h	//G3_PTE_1",G3_PTE_1));
+        	instr_st.push_back($sformatf("sd x6, (x5)"));
       		if(guest_page_size != P2MB)begin
-        		$display("li x5, 0x%0h	//G3_PTE_ADDR_0",G3_PTE_ADDR_0);
-        		$display("li x6, 0x%0h	//G3_PTE_0",G3_PTE_0);
-        		$display("sd x6, (x5)\n");
+        		instr_st.push_back($sformatf("li x5, 0x%0h	//G3_PTE_ADDR_0",G3_PTE_ADDR_0));
+        		instr_st.push_back($sformatf("li x6, 0x%0h	//G3_PTE_0",G3_PTE_0));
+        		instr_st.push_back($sformatf("sd x6, (x5)\n"));
         	end
         end
       end
-      	$display("li x5, 0x%0h	//PA_3",PA_3);
-      	$display("li x6, 0x%0h	//PTE_3",PTE_3);
-        $display("sd x6, (x5)\n\n");
+      	instr_st.push_back($sformatf("li x5, 0x%0h	//PA_3",PA_3));
+      	instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_3",PTE_3));
+        instr_st.push_back($sformatf("sd x6, (x5)\n\n"));
     end
       
       // Level G2
       if(guest_page_size inside {P512GB,P1GB,P2MB,P4KB})begin
 
       if(vsatp_m == SV48M)begin
-        $display("li x5, 0x%0h	//G2_PTE_ADDR_3",G2_PTE_ADDR_3);
-        $display("li x6, 0x%0h	//G2_PTE_3",G2_PTE_3);
-        $display("sd x6, (x5)");
+        instr_st.push_back($sformatf("li x5, 0x%0h	//G2_PTE_ADDR_3",G2_PTE_ADDR_3));
+        instr_st.push_back($sformatf("li x6, 0x%0h	//G2_PTE_3",G2_PTE_3));
+        instr_st.push_back($sformatf("sd x6, (x5)"));
       end
         if(guest_page_size != P512GB)begin
-      $display("li x5, 0x%0h	//G2_PTE_ADDR_2",G2_PTE_ADDR_2);
-      $display("li x6, 0x%0h	//G2_PTE_2",G2_PTE_2);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G2_PTE_ADDR_2",G2_PTE_ADDR_2));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G2_PTE_2",G2_PTE_2));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
         if(guest_page_size != P1GB)begin
-      $display("li x5, 0x%0h	//G2_PTE_ADDR_1",G2_PTE_ADDR_1);
-      $display("li x6, 0x%0h	//G2_PTE_1",G2_PTE_1);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G2_PTE_ADDR_1",G2_PTE_ADDR_1));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G2_PTE_1",G2_PTE_1));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
         if(guest_page_size != P2MB)begin
-      $display("li x5, 0x%0h	//G2_PTE_ADDR_0",G2_PTE_ADDR_0);
-      $display("li x6, 0x%0h	//G2_PTE_0",G2_PTE_0);
-      $display("sd x6, (x5)\n");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G2_PTE_ADDR_0",G2_PTE_ADDR_0));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G2_PTE_0",G2_PTE_0));
+      instr_st.push_back($sformatf("sd x6, (x5)\n"));
         end
         end
-      $display("li x5, 0x%0h	//PA_2",PA_2);
-      $display("li x6, 0x%0h	//PTE_2",PTE_2);
-      $display("sd x6, (x5)\n\n");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//PA_2",PA_2));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_2",PTE_2));
+      instr_st.push_back($sformatf("sd x6, (x5)\n\n"));
         end
       end
       
         //level G1
       if(guest_page_size inside {P1GB,P2MB,P4KB})begin
    	  if(vsatp_m == SV48M)begin
-        $display("li x5, 0x%0h	//G1_PTE_ADDR_3",G1_PTE_ADDR_3);
-        $display("li x6, 0x%0h	//G1_PTE_3",G1_PTE_3);
-        $display("sd x6, (x5)");
+        instr_st.push_back($sformatf("li x5, 0x%0h	//G1_PTE_ADDR_3",G1_PTE_ADDR_3));
+        instr_st.push_back($sformatf("li x6, 0x%0h	//G1_PTE_3",G1_PTE_3));
+        instr_st.push_back($sformatf("sd x6, (x5)"));
       end
     
-      $display("li x5, 0x%0h	//G1_PTE_ADDR_2",G1_PTE_ADDR_2);
-      $display("li x6, 0x%0h	//G1_PTE_2",G1_PTE_2);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G1_PTE_ADDR_2",G1_PTE_ADDR_2));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G1_PTE_2",G1_PTE_2));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
     
         if(guest_page_size != P1GB)begin
-      $display("li x5, 0x%0h	//G1_PTE_ADDR_1",G1_PTE_ADDR_1);
-      $display("li x6, 0x%0h	//G1_PTE_1",G1_PTE_1);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G1_PTE_ADDR_1",G1_PTE_ADDR_1));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G1_PTE_1",G1_PTE_1));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
         if(guest_page_size != P2MB)begin
-      $display("li x5, 0x%0h	//G1_PTE_ADDR_0",G1_PTE_ADDR_0);
-      $display("li x6, 0x%0h	//G1_PTE_0",G1_PTE_0);
-      $display("sd x6, (x5)\n");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G1_PTE_ADDR_0",G1_PTE_ADDR_0));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G1_PTE_0",G1_PTE_0));
+      instr_st.push_back($sformatf("sd x6, (x5)\n"));
       	end
-      $display("li x5, 0x%0h	//PA_1",PA_1);
-      $display("li x6, 0x%0h	//PTE_1",PTE_1);
-      $display("sd x6, (x5)\n\n");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//PA_1",PA_1));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_1",PTE_1));
+      instr_st.push_back($sformatf("sd x6, (x5)\n\n"));
        	end
      end
       
       //level G0
       if(guest_page_size inside {P2MB,P4KB})begin
       if(vsatp_m == SV48M)begin
-        $display("li x5, 0x%0h	//G0_PTE_ADDR_3",G0_PTE_ADDR_3);
-        $display("li x6, 0x%0h	//G0_PTE_3",G0_PTE_3);
-        $display("sd x6, (x5)");
+        instr_st.push_back($sformatf("li x5, 0x%0h	//G0_PTE_ADDR_3",G0_PTE_ADDR_3));
+        instr_st.push_back($sformatf("li x6, 0x%0h	//G0_PTE_3",G0_PTE_3));
+        instr_st.push_back($sformatf("sd x6, (x5)"));
       end
     
-      $display("li x5, 0x%0h	//G0_PTE_ADDR_2",G0_PTE_ADDR_2);
-      $display("li x6, 0x%0h	//G0_PTE_2",G0_PTE_2);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G0_PTE_ADDR_2",G0_PTE_ADDR_2));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G0_PTE_2",G0_PTE_2));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
     
       
-      $display("li x5, 0x%0h	//G0_PTE_ADDR_1",G0_PTE_ADDR_1);
-      $display("li x6, 0x%0h	//G0_PTE_1",G0_PTE_1);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G0_PTE_ADDR_1",G0_PTE_ADDR_1));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G0_PTE_1",G0_PTE_1));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
     
         if(guest_page_size == P4KB)begin
-      $display("li x5, 0x%0h	//G0_PTE_ADDR_0",G0_PTE_ADDR_0);
-      $display("li x6, 0x%0h	//G0_PTE_0",G0_PTE_0);
-      $display("sd x6, (x5)\n");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G0_PTE_ADDR_0",G0_PTE_ADDR_0));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G0_PTE_0",G0_PTE_0));
+      instr_st.push_back($sformatf("sd x6, (x5)\n"));
     
-      $display("li x5, 0x%0h	//PA_0",PA_0);
-      $display("li x6, 0x%0h	//PTE_0",PTE_0);
-      $display("sd x6, (x5)\n\n");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//PA_0",PA_0));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_0",PTE_0));
+      instr_st.push_back($sformatf("sd x6, (x5)\n\n"));
         end
       end
       
       //level G00
       if(guest_page_size==P4KB)begin
       if(vsatp_m == SV48M)begin
-        $display("li x5, 0x%0h	//G00_PTE_ADDR_3",G00_PTE_ADDR_3);
-        $display("li x6, 0x%0h	//G00_PTE_3",G00_PTE_3);
-        $display("sd x6, (x5)");
+        instr_st.push_back($sformatf("li x5, 0x%0h	//G00_PTE_ADDR_3",G00_PTE_ADDR_3));
+        instr_st.push_back($sformatf("li x6, 0x%0h	//G00_PTE_3",G00_PTE_3));
+        instr_st.push_back($sformatf("sd x6, (x5)"));
       end
     
-      $display("li x5, 0x%0h	//G00_PTE_ADDR_2",G00_PTE_ADDR_2);
-      $display("li x6, 0x%0h	//G00_PTE_2",G00_PTE_2);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G00_PTE_ADDR_2",G00_PTE_ADDR_2));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G00_PTE_2",G00_PTE_2));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
     
-      $display("li x5, 0x%0h	//G00_PTE_ADDR_1",G00_PTE_ADDR_1);
-      $display("li x6, 0x%0h	//G00_PTE_1",G00_PTE_1);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G00_PTE_ADDR_1",G00_PTE_ADDR_1));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G00_PTE_1",G00_PTE_1));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
     
-      $display("li x5, 0x%0h	//G00_PTE_ADDR_0",G00_PTE_ADDR_0);
-      $display("li x6, 0x%0h	//G00_PTE_0",G00_PTE_0);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//G00_PTE_ADDR_0",G00_PTE_ADDR_0));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//G00_PTE_0",G00_PTE_0));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
     
-      $display("// spa = 0x%0h",SPA);
-      $display("// csrw vsatp, 0x%0h",vsatp);
-      $display("// csrw hgatp, 0x%0h",hgatp);
+      instr_st.push_back($sformatf("// spa = 0x%0h",SPA));
+      instr_st.push_back($sformatf("// csrw vsatp, 0x%0h",vsatp));
+      instr_st.push_back($sformatf("// csrw hgatp, 0x%0h",hgatp));
       end
     end
     else begin
-      $display("\n\tPTE calculation");
+      instr_st.push_back($sformatf("\n\tPTE calculation"));
 
-      $display("VA_3 = 0x%0h",gva);
-      $display("VPN_3 << 3 = 0x%0h",VPN_3 <<3);
-      $display("VPN_2 << 3 = 0x%0h",VPN_2 <<3);
-      $display("VPN_1 << 3 = 0x%0h",VPN_1 <<3);
-      $display("VPN_0 << 3 = 0x%0h",VPN_0 <<3);
+      instr_st.push_back($sformatf("VA_3 = 0x%0h",gva));
+      instr_st.push_back($sformatf("VPN_3 << 3 = 0x%0h",VPN_3 <<3));
+      instr_st.push_back($sformatf("VPN_2 << 3 = 0x%0h",VPN_2 <<3));
+      instr_st.push_back($sformatf("VPN_1 << 3 = 0x%0h",VPN_1 <<3));
+      instr_st.push_back($sformatf("VPN_0 << 3 = 0x%0h",VPN_0 <<3));
       
-      $display("\nPTE_ADDR_3 = 0x%0h",PTE_ADDR_3);
-      $display("PTE_3 = 0x%0h",PTE_3);
+      instr_st.push_back($sformatf("\nPTE_ADDR_3 = 0x%0h",PTE_ADDR_3));
+      instr_st.push_back($sformatf("PTE_3 = 0x%0h",PTE_3));
     
-      $display("PTE_ADDR_2 = 0x%0h",PTE_ADDR_2);
-      $display("PTE_2 = 0x%0h",PTE_2);
+      instr_st.push_back($sformatf("PTE_ADDR_2 = 0x%0h",PTE_ADDR_2));
+      instr_st.push_back($sformatf("PTE_2 = 0x%0h",PTE_2));
     
-      $display("PTE_ADDR_1 = 0x%0h",PTE_ADDR_1);
-      $display("PTE_1 = 0x%0h",PTE_1);
+      instr_st.push_back($sformatf("PTE_ADDR_1 = 0x%0h",PTE_ADDR_1));
+      instr_st.push_back($sformatf("PTE_1 = 0x%0h",PTE_1));
     
-      $display("PTE_ADDR_0 = 0x%0h",PTE_ADDR_0);
-      $display("PTE_0 = 0x%0h",PTE_0);
+      instr_st.push_back($sformatf("PTE_ADDR_0 = 0x%0h",PTE_ADDR_0));
+      instr_st.push_back($sformatf("PTE_0 = 0x%0h",PTE_0));
     
-      $display("\nPA = 0x%0h",PA);
-      $display("PTE = 0x%0h\n",PTE);
-      $display("************************************************************************************/");
+      instr_st.push_back($sformatf("\nPA = 0x%0h",PA));
+      instr_st.push_back($sformatf("PTE = 0x%0h\n",PTE));
+      instr_st.push_back($sformatf("************************************************************************************/"));
       if(satp_m == SV48M)begin
-      $display("li x5, 0x%0h	//PTE_ADDR_3",PTE_ADDR_3);
-      $display("li x6, 0x%0h	//PTE_3",PTE_3);
-      $display("sd x6, (x5)");
+      instr_st.push_back($sformatf("li x5, 0x%0h	//PTE_ADDR_3",PTE_ADDR_3));
+      instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_3",PTE_3));
+      instr_st.push_back($sformatf("sd x6, (x5)"));
       end
       if(init_page_size < P512GB)begin
-      	$display("li x5, 0x%0h	//PTE_ADDR_2",PTE_ADDR_2);
-      	$display("li x6, 0x%0h	//PTE_2",PTE_2);
-      	$display("sd x6, (x5)");
+      	instr_st.push_back($sformatf("li x5, 0x%0h	//PTE_ADDR_2",PTE_ADDR_2));
+      	instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_2",PTE_2));
+      	instr_st.push_back($sformatf("sd x6, (x5)"));
               
         if(init_page_size < P1GB)begin
-      		$display("li x5, 0x%0h	//PTE_ADDR_1",PTE_ADDR_1);
-      		$display("li x6, 0x%0h	//PTE_1",PTE_1);
-      		$display("sd x6, (x5)");
+      		instr_st.push_back($sformatf("li x5, 0x%0h	//PTE_ADDR_1",PTE_ADDR_1));
+      		instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_1",PTE_1));
+      		instr_st.push_back($sformatf("sd x6, (x5)"));
             if(init_page_size < P2MB)begin
-      			$display("li x5, 0x%0h	//PTE_ADDR_0",PTE_ADDR_0);
-      			$display("li x6, 0x%0h	//PTE_0",PTE_0);
-      			$display("sd x6, (x5)");
+      			instr_st.push_back($sformatf("li x5, 0x%0h	//PTE_ADDR_0",PTE_ADDR_0));
+      			instr_st.push_back($sformatf("li x6, 0x%0h	//PTE_0",PTE_0));
+      			instr_st.push_back($sformatf("sd x6, (x5)"));
             end
         end
       end
@@ -823,14 +815,14 @@ class riscv_mmu_gen;
       
       endfunction
   
-  function void gen_guest_page_fault();
+  function void gen_guest_page_fault(ref string instr_st[$]);
 	// 512GB fault
     
-    $display("////BEFORE//// \nli x6, 0x%0h",G3_PTE_0);
-    $display("li x6, 0x%0h",G2_PTE_0);
-    $display("li x6, 0x%0h",G1_PTE_0);
-    $display("li x6, 0x%0h",G0_PTE_0);
-    $display("li x6, 0x%0h",G00_PTE_0);
+    instr_st.push_back($sformatf("////BEFORE//// \nli x6, 0x%0h",G3_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G2_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G1_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G0_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G00_PTE_0));
     
     case(guest_page_size)
       P512GB:begin
@@ -949,15 +941,15 @@ class riscv_mmu_gen;
       end
     endcase
         
-    $display("///////AFTER//////// \nli x6, 0x%0h",G3_PTE_0);
-    $display("li x6, 0x%0h",G2_PTE_0);
-    $display("li x6, 0x%0h",G1_PTE_0);
-    $display("li x6, 0x%0h",G0_PTE_0);
-    $display("li x6, 0x%0h",G00_PTE_0);
+    instr_st.push_back($sformatf("///////AFTER//////// \nli x6, 0x%0h",G3_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G2_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G1_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G0_PTE_0));
+    instr_st.push_back($sformatf("li x6, 0x%0h",G00_PTE_0));
 
    
   endfunction
-function void gen_page_fault();
+function void gen_page_fault(ref string instr_st[$]);
   case(init_page_size)
   P512GB:begin
     if(vsatp_m == SV48M)begin
@@ -1013,19 +1005,19 @@ function void gen_page_fault();
         end
       end
     endcase
-  $display("///////AFTER//////// \nli x6, 0x%0h",PTE_0);
-  $display("li x6, 0x%0h",PTE_3);
-  $display("li x7, 0x%0h",PA_3);
-  $display("sd x6, (x7)");
-  $display("li x6, 0x%0h",PTE_2);
-  $display("li x7, 0x%0h",PA_2);
-  $display("sd x6, (x7)");
-  $display("li x6, 0x%0h",PTE_1);
-  $display("li x7, 0x%0h",PA_1);
-  $display("sd x6, (x7)");
-  $display("li x6, 0x%0h",PTE_0);
-  $display("li x7, 0x%0h",PA_0);
-  $display("sd x6, (x7)");
+  instr_st.push_back($sformatf("///////AFTER//////// \nli x6, 0x%0h",PTE_0));
+  instr_st.push_back($sformatf("li x6, 0x%0h",PTE_3));
+  instr_st.push_back($sformatf("li x7, 0x%0h",PA_3));
+  instr_st.push_back($sformatf("sd x6, (x7)"));
+  instr_st.push_back($sformatf("li x6, 0x%0h",PTE_2));
+  instr_st.push_back($sformatf("li x7, 0x%0h",PA_2));
+  instr_st.push_back($sformatf("sd x6, (x7)"));
+  instr_st.push_back($sformatf("li x6, 0x%0h",PTE_1));
+  instr_st.push_back($sformatf("li x7, 0x%0h",PA_1));
+  instr_st.push_back($sformatf("sd x6, (x7)"));
+  instr_st.push_back($sformatf("li x6, 0x%0h",PTE_0));
+  instr_st.push_back($sformatf("li x7, 0x%0h",PA_0));
+  instr_st.push_back($sformatf("sd x6, (x7)"));
   endfunction
 
 endclass

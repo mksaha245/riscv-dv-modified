@@ -281,7 +281,42 @@ class riscv_instr_gen_config extends uvm_object;
   int                    dist_control_mode;
   int unsigned           category_dist[riscv_instr_category_t];
 
+  // MMU unit signals
+  bit[XLEN-1:0] PC_GVA ='h0;
+  bit[XLEN-1:0] DATA_GVA ='h8229989199a;
+  
+  bit 	en_hv_inst=0,
+	is_sup=0,
+	is_user=0,
+	is_virtualization_on=0,
+	inst_trans=0,data_trans=0,
+	enable_g_load_page_fault=0,
+	enable_g_store_page_fault=0,
+	enable_g_inst_access_page_fault=0,
+	stage_2_g_fault=0,
+	enable_load_page_fault=0,
+	enable_store_page_fault=0,
+	enable_inst_access_page_fault=0,
+	stage_1_fault;
+  int 	num_g_load_page_fault=0,
+	num_g_store_page_fault=0,
+	num_g_inst_access_page_fault=0;
+  privileged_reg_t       custom_csr_include[]={};  
+  page_size_t init_page_size[]={};
+  page_size_t guest_page_size[]={};
+  atp_mode hgatp_m[] = {BAREM};
+  atp_mode vsatp_m[] = {BAREM};
+  atp_mode satp_m[] = {SV48M};
 
+  bit v_mode_on=0;
+  string satp_str,vsatp_str,hgatp_str;
+  bit[63:0] satp = 64'h0000100267070711;
+  bit[63:0] 	vsatp = 64'h0000100199999911;
+  bit[63:0]   	hgatp = 64'h00001001010810a4;
+    //satp[63:60] = satp_m;
+    //vsatp[63:60] = vsatp_m;
+    //hgatp[63:60] = hgatp_m;
+    
   constraint default_c {
     sub_program_instr_cnt.size() == num_of_sub_program;
     debug_sub_program_instr_cnt.size() == num_debug_sub_program;
@@ -486,6 +521,37 @@ class riscv_instr_gen_config extends uvm_object;
     `uvm_field_int(custom_pmp_enable, UVM_DEFAULT)    
     `uvm_field_int(custom_pmp_write_cfgaddr, UVM_DEFAULT)
     `uvm_field_int(enable_mixed_instr_stream, UVM_DEFAULT)
+
+    //MMU units arguments
+    `uvm_field_int(PC_GVA, 			UVM_DEFAULT)
+    `uvm_field_int(DATA_GVA , 			UVM_DEFAULT)
+  
+    `uvm_field_int(en_hv_inst, 			UVM_DEFAULT)
+    `uvm_field_int(is_sup, 			UVM_DEFAULT)
+    `uvm_field_int(is_user, 			UVM_DEFAULT)
+    `uvm_field_int(is_virtualization_on, 	UVM_DEFAULT)
+    `uvm_field_int(data_trans, 	UVM_DEFAULT)
+    `uvm_field_int(inst_trans, 	UVM_DEFAULT)
+    `uvm_field_int(enable_g_load_page_fault, 	UVM_DEFAULT)
+    `uvm_field_int(enable_g_store_page_fault, 	UVM_DEFAULT)
+    `uvm_field_int(enable_g_inst_access_page_fault, UVM_DEFAULT)
+    `uvm_field_int(stage_2_g_fault, 		UVM_DEFAULT)
+    `uvm_field_int(enable_load_page_fault, 	UVM_DEFAULT)
+    `uvm_field_int(enable_store_page_fault, 	UVM_DEFAULT)
+    `uvm_field_int(enable_inst_access_page_fault, UVM_DEFAULT)
+    `uvm_field_int(stage_1_fault, 		UVM_DEFAULT)
+    `uvm_field_int(num_g_load_page_fault, 	UVM_DEFAULT)
+    `uvm_field_int(num_g_store_page_fault, 	UVM_DEFAULT)
+    `uvm_field_int(num_g_inst_access_page_fault, 	UVM_DEFAULT)
+    `uvm_field_array_enum(page_size_t, init_page_size, 	UVM_DEFAULT)
+    `uvm_field_array_enum(page_size_t,guest_page_size, 	UVM_DEFAULT)
+    `uvm_field_array_enum(atp_mode,hgatp_m,  		UVM_DEFAULT)
+    `uvm_field_array_enum(atp_mode,vsatp_m,  		UVM_DEFAULT)
+    `uvm_field_array_enum(atp_mode, satp_m,  		UVM_DEFAULT)
+    `uvm_field_int(satp,  		UVM_DEFAULT)
+    `uvm_field_int(vsatp,  		UVM_DEFAULT)
+    `uvm_field_int(hgatp,  		UVM_DEFAULT)
+
     
     `uvm_field_int(main_program_instr_cnt, UVM_DEFAULT)
     `uvm_field_sarray_int(sub_program_instr_cnt, UVM_DEFAULT)
@@ -566,6 +632,46 @@ class riscv_instr_gen_config extends uvm_object;
     get_bool_arg_value("+custom_pmp_write_cfgaddr=", custom_pmp_write_cfgaddr);
     get_bool_arg_value("+enable_mixed_instr_stream=", enable_mixed_instr_stream);
     
+    get_hex_arg_value("+PC_GVA=", PC_GVA);
+    get_hex_arg_value("+DATA_GVA=", DATA_GVA);
+                                 
+    get_bool_arg_value("+en_hv_inst=", 			en_hv_inst); 			
+    get_bool_arg_value("+is_sup=", 			is_sup); 			
+    get_bool_arg_value("+is_user=", 			is_user); 			
+    get_bool_arg_value("+is_virtualization_on=", 	is_virtualization_on); 	
+    get_bool_arg_value("+data_trans=",	 		data_trans); 	
+    get_bool_arg_value("+inst_trans=",		 	inst_trans); 	
+    get_bool_arg_value("+enable_g_load_page_fault=", 	enable_g_load_page_fault); 	
+    get_bool_arg_value("+enable_g_store_page_fault=", 	enable_g_store_page_fault); 	
+    get_bool_arg_value("+enable_g_inst_access_page_fault=",   enable_g_inst_access_page_fault);
+    get_bool_arg_value("+stage_2_g_fault=", 		stage_2_g_fault); 		
+    get_bool_arg_value("+enable_load_page_fault=", 	enable_load_page_fault); 	
+    get_bool_arg_value("+enable_store_page_fault=", 	enable_store_page_fault); 	
+    get_bool_arg_value("+enable_inst_access_page_fault=",enable_inst_access_page_fault);
+    get_bool_arg_value("+stage_1_fault=", 		stage_1_fault); 		
+    get_int_arg_value("+num_g_load_page_fault=", 	num_g_load_page_fault); 	
+    get_int_arg_value("+num_g_store_page_fault=", 	num_g_store_page_fault); 	
+    get_int_arg_value("+num_g_inst_access_page_fault=", num_g_inst_access_page_fault);
+    //get_hex_arg_value("+satp=", satp);
+    get_hex_arg_value("+vsatp=",vsatp);
+    get_hex_arg_value("+hgatp=",hgatp);
+    if(inst.get_arg_value("+vsatp=", vsatp_str))begin
+	$sscanf(vsatp_str, "%h", vsatp);
+    end
+    if(inst.get_arg_value("+hgatp=", hgatp_str))begin
+	$sscanf(hgatp_str, "%h", hgatp);
+    end
+    if(inst.get_arg_value("+satp=", satp_str))begin
+	$sscanf(satp_str, "%h", satp);
+    end
+    	
+    
+    cmdline_enum_processor #(page_size_t)::get_array_values("+init_page_size=",1'b1,init_page_size);
+    cmdline_enum_processor #(page_size_t)::get_array_values("+guest_page_size=",1'b1,guest_page_size);
+    cmdline_enum_processor #(atp_mode)::get_array_values("+hgatp_m=",1'b1,hgatp_m);
+    cmdline_enum_processor #(atp_mode)::get_array_values("+vsatp_m=",1'b1,vsatp_m);
+    cmdline_enum_processor #(atp_mode)::get_array_values("+satp_m=",1'b1,satp_m);
+
     get_int_arg_value("+num_of_tests=", num_of_tests);
     get_int_arg_value("+enable_page_table_exception=", enable_page_table_exception);
     get_bool_arg_value("+enable_interrupt=", enable_interrupt);
@@ -630,7 +736,7 @@ class riscv_instr_gen_config extends uvm_object;
     cmdline_enum_processor #(b_ext_group_t)::get_array_values("+enable_bitmanip_groups=",
                                                               1'b0, enable_bitmanip_groups);
     cmdline_enum_processor #(privileged_reg_t)::get_array_values("+custom_csr_include=",
-                                                              1'b0, custom_csr_include);
+                                                              1'b1, custom_csr_include);
     if(inst.get_arg_value("+boot_mode=", boot_mode_opts)) begin
       `uvm_info(get_full_name(), $sformatf(
                 "Got boot mode option - %0s", boot_mode_opts), UVM_LOW)
@@ -745,6 +851,7 @@ class riscv_instr_gen_config extends uvm_object;
     min_stack_len_per_program = 2 * (XLEN/8);
     // Check if the setting is legal
     check_setting();
+	$display("value of satp is = %0h",satp);
   endfunction
 
   virtual function void check_setting();
@@ -775,6 +882,7 @@ class riscv_instr_gen_config extends uvm_object;
     if (!(support_128b || support_64b) && !(SATP_MODE inside {SV32, BARE})) begin
       `uvm_fatal(`gfn, $sformatf("SATP mode %0s is not supported for RV32G ISA", SATP_MODE.name()))
     end
+	$display("check_settingvalue of satp is = %0h",satp);
   endfunction
 
 

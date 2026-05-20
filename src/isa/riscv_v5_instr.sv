@@ -34,7 +34,6 @@ constraint rd_c{
 }
   function new(string name = "");
     super.new(name);
-    `uvm_info(`gfn, $sformatf("line 34 creating riscv_v5_instr"), UVM_LOW)
   endfunction
 
 
@@ -42,7 +41,6 @@ constraint rd_c{
   virtual function void set_rand_mode();
     super.set_rand_mode();
     has_rs3 = 1'b0;
-    `uvm_info(`gfn, $sformatf("line 44 Imm rand_mode Mukess -> instr name - %0p, group - %p, format - %p", instr_name,group,format), UVM_LOW)
     case (format) inside
       R_FORMAT: begin
         if (instr_name inside {BBC, BBS ,BEQC,BNEC,BFOS}) begin
