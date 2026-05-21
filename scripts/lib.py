@@ -262,6 +262,42 @@ def create_output(output, noclean, prefix="out_"):
     subprocess.run(["mkdir", "-p", output])
     return output
 
+def delete_output(output, clean, prefix="out_"):
+    """ Create output directory
+
+  Args:
+    output : Name of specified output directory
+    clean: Clean the output of the previous runs
+
+  Returns:
+    Output directory
+  """
+    # Create output directory
+    if output is None:
+        output = prefix + str(date.today())
+
+    logging.info("Removing output directory: {}".format(output))
+    subprocess.run(["rm", "-rf", output])
+    return output
+
+def delete_all_output(output, cleanall, prefix="out_"):
+    """ Create output directory
+
+  Args:
+    output : Name of specified output directory
+    cleanall: Clean the output of the previous runs
+
+  Returns:
+    Output directory
+  """
+    # Remove output directory
+    if output is None:
+        output = prefix + '*'
+
+    logging.info("Removing all output directory: {}".format(output))
+    os.system("rm -rf {}".format(output))
+    return output
+
 
 def gpr_to_abi(gpr):
     """Convert a general purpose register to its corresponding abi name"""

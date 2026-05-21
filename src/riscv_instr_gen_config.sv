@@ -309,7 +309,7 @@ class riscv_instr_gen_config extends uvm_object;
   atp_mode satp_m[] = {SV48M};
 
   bit v_mode_on=0;
-  string satp_str,vsatp_str,hgatp_str;
+  string satp_str,vsatp_str,hgatp_str, PC_GVA_str, DATA_GVA_str;
   bit[63:0] satp = 64'h0000100267070711;
   bit[63:0] 	vsatp = 64'h0000100199999911;
   bit[63:0]   	hgatp = 64'h00001001010810a4;
@@ -655,12 +655,22 @@ class riscv_instr_gen_config extends uvm_object;
     //get_hex_arg_value("+satp=", satp);
     get_hex_arg_value("+vsatp=",vsatp);
     get_hex_arg_value("+hgatp=",hgatp);
+    if(inst.get_arg_value("+DATA_GVA=", DATA_GVA_str))begin
+	$sscanf(DATA_GVA_str, "%h", DATA_GVA);
+    end
+
+    if(inst.get_arg_value("+PC_GVA=", PC_GVA_str))begin
+	$sscanf(PC_GVA_str, "%h", PC_GVA);
+    end
+
     if(inst.get_arg_value("+vsatp=", vsatp_str))begin
 	$sscanf(vsatp_str, "%h", vsatp);
     end
+
     if(inst.get_arg_value("+hgatp=", hgatp_str))begin
 	$sscanf(hgatp_str, "%h", hgatp);
     end
+
     if(inst.get_arg_value("+satp=", satp_str))begin
 	$sscanf(satp_str, "%h", satp);
     end

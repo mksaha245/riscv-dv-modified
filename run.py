@@ -869,6 +869,10 @@ def parse_args(cwd):
                         help="Stop on detecting first error")
     parser.add_argument("--noclean", action="store_true", default=True,
                         help="Do not clean the output of the previous runs")
+    parser.add_argument("--clean", action="store_true", default=False,
+                        help="clean the output of the previous run")
+    parser.add_argument("--cleanall", action="store_true", default=False,
+                        help="clean all the output of the previous runs")
     parser.add_argument("--verilog_style_check", action="store_true",
                         default=False,
                         help="Run verilog style check")
@@ -1074,6 +1078,14 @@ def main():
 
         args = parse_args(cwd)
         setup_logging(args.verbose)
+
+        # Remove output directory
+        if args.clean:
+            output_dir = delete_output(args.o, args.clean)
+	
+        # Remove all output directory
+        if args.cleanall:
+            output_dir = delete_all_output(args.o, args.cleanall)
 
         # Create output directory
         output_dir = create_output(args.o, args.noclean)

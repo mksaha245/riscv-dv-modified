@@ -74,7 +74,6 @@ riscv_instr_gen_config cfg;
     num_g_store_page_fault = cfg.num_g_store_page_fault;
     num_g_inst_access_page_fault = cfg.num_g_inst_access_page_fault;
 
-    instr_st.push_back($sformatf("I'm inside mmu gen"));
     en_hv_inst = cfg.en_hv_inst;
     is_sup = cfg.is_sup ;
     is_user = cfg.is_user;
@@ -158,7 +157,7 @@ riscv_instr_gen_config cfg;
 	instr_st.push_back($sformatf("li x9, 0x%0h",satp));
 	instr_st.push_back($sformatf("csrw satp,x9")); 
     end
-    instr_st.push_back($sformatf("la x10, main"));
+    /*instr_st.push_back($sformatf("la x10, main"));
     instr_st.push_back($sformatf("csrw mepc,x10"));
     instr_st.push_back($sformatf("mret"));
     instr_st.push_back($sformatf("main:	\
@@ -169,6 +168,7 @@ riscv_instr_gen_config cfg;
              	\n\tsd x20,8(x10)	\
 		\n\tsh x21,8(x10)	\
 		\n\tld x15,8(x10)		"));
+*/
     if(en_hv_inst)begin
     	instr_st.push_back($sformatf("\n\thsv.d x20,(x10)	\
              \n\thlvx.wu x21,(x10)	\
